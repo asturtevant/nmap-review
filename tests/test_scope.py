@@ -65,7 +65,7 @@ class TestMatching(unittest.TestCase):
 class TestApplyScope(unittest.TestCase):
     def test_exclude_moves_rather_than_deletes(self):
         scan = apply_scope(sample(), exclude=["192.168.56.11"])
-        self.assertEqual(["192.168.56.10", "192.168.56.12"],
+        self.assertEqual(["192.168.56.10", "192.168.56.14", "192.168.56.12"],
                          [h.address for h in scan.hosts])
         self.assertEqual(1, len(scan.excluded))
         host, reason = scan.excluded[0]
@@ -75,19 +75,19 @@ class TestApplyScope(unittest.TestCase):
     def test_only_host_is_an_allow_list(self):
         scan = apply_scope(sample(), only=["192.168.56.10"])
         self.assertEqual(["192.168.56.10"], [h.address for h in scan.hosts])
-        self.assertEqual(2, len(scan.excluded))
+        self.assertEqual(3, len(scan.excluded))
         self.assertTrue(all("not matched by --only-host" in r for _, r in scan.excluded))
 
     def test_only_then_exclude_compose(self):
         """'this subnet, except that box'."""
         scan = apply_scope(sample(), only=["192.168.56.0/24"],
                            exclude=["192.168.56.12"])
-        self.assertEqual(["192.168.56.10", "192.168.56.11"],
+        self.assertEqual(["192.168.56.10", "192.168.56.11", "192.168.56.14"],
                          [h.address for h in scan.hosts])
 
     def test_no_patterns_is_a_no_op(self):
         scan = apply_scope(sample())
-        self.assertEqual(3, len(scan.hosts))
+        self.assertEqual(4, len(scan.hosts))
         self.assertEqual([], scan.excluded)
 
     def test_findings_for_excluded_hosts_are_gone(self):
@@ -140,14 +140,15 @@ class TestScopeCLI(unittest.TestCase):
                             "-f", "json"])
         self.assertEqual(0, code)
         payload = json.loads(out)
-        self.assertEqual(["192.168.56.10", "192.168.56.12"],
+        self.assertEqual(["192.168.56.10", "192.168.56.14", "192.168.56.12"],
                          [h["address"] for h in payload["hosts"]])
 
     def test_repeatable(self):
         code, out, _ = run(["report", SAMPLE, "--exclude-host", "192.168.56.11",
                             "--exclude-host", "192.168.56.12", "-f", "json"])
         payload = json.loads(out)
-        self.assertEqual(["192.168.56.10"], [h["address"] for h in payload["hosts"]])
+        self.assertEqual(["192.168.56.10", "192.168.56.14"],
+                         [h["address"] for h in payload["hosts"]])
 
     def test_typo_warns_on_stderr_without_failing(self):
         code, _, err = run(["report", SAMPLE, "--exclude-host", "10.9.9.9", "-f", "json"])
@@ -186,7 +187,8 @@ class TestCommaSeparated(unittest.TestCase):
 
     def test_comma_list_excludes_both(self):
         scan = apply_scope(sample(), exclude=["192.168.56.11,192.168.56.12"])
-        self.assertEqual(["192.168.56.10"], [h.address for h in scan.hosts])
+        self.assertEqual(["192.168.56.10", "192.168.56.14"],
+                         [h.address for h in scan.hosts])
         self.assertEqual(2, len(scan.excluded))
 
     def test_comma_and_repeated_flags_combine(self):
@@ -194,7 +196,7 @@ class TestCommaSeparated(unittest.TestCase):
                             "--exclude-host", "192.168.56.11,192.168.56.12",
                             "-f", "json"])
         self.assertEqual(0, code)
-        self.assertEqual(["192.168.56.10"],
+        self.assertEqual(["192.168.56.10", "192.168.56.14"],
                          [h["address"] for h in json.loads(out)["hosts"]])
 
     def test_trailing_comma_does_not_produce_a_bogus_warning(self):

@@ -24,6 +24,8 @@ not "this is a critical vulnerability".
 import re
 from dataclasses import dataclass, field
 
+from .profile import detect_roles
+
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
 
 
@@ -586,8 +588,48 @@ def _excerpt(text, match, width=90):
     return ("..." if start else "") + snippet + ("..." if end < len(text) else "")
 
 
+_DOWNGRADE = {"high": "medium", "medium": "low", "low": "info", "info": "info"}
+
+
+def _article(word):
+    return "an" if word[:1].upper() in "AEIOU" else "a"
+
+
+def _roles(scan):
+    """Name what each host appears to BE, where that changes the review.
+
+    Not every role earns a finding -- "web server" is true of half an estate
+    and flagging it is noise. The ones here are the roles that change how the
+    host's other findings should be read, which is a different test from
+    "is this interesting".
+    """
+    out = []
+    for host in scan.up_hosts():
+        for role in detect_roles(host):
+            if not role.priority:
+                continue
+            # A role inferred from weak evidence is reported quietly. It still
+            # has to be reported: a possible domain controller is worth ten
+            # minutes of confirmation, and silence costs more than the ten
+            # minutes do.
+            priority = (role.priority if role.confidence != "possible"
+                        else _DOWNGRADE[role.priority])
+            out.append(Finding(
+                "SRF-HOST-ROLE", priority, "surface",
+                f"Looks like {_article(role.name)} {role.name} "
+                f"({role.confidence} match)",
+                f"Matched on: {'; '.join(role.signals)}. {role.review} "
+                "This is inferred from the scan, not confirmed -- read the "
+                "signals above and decide whether they describe this host.",
+                role.next_step,
+                target=host.label,
+                evidence=list(role.signals),
+            ))
+    return out
+
+
 def review(scan):
     """All findings for a scan, highest review priority first."""
-    findings = _coverage(scan) + _host_coverage(scan) + _surface(scan)
+    findings = _coverage(scan) + _host_coverage(scan) + _roles(scan) + _surface(scan)
     findings.sort(key=lambda f: f.sort_key())
     return findings

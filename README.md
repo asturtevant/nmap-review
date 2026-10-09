@@ -217,10 +217,52 @@ gaps actually found, not a generic checklist.
 | `COV-LOW-CONFIDENCE` | nmap's `conf` ≤ 5 | nmap probed and was unsure |
 | `COV-OS-UNCERTAIN` | best OS match < 90% | don't quote the OS line as fact |
 
+### Host roles
+
+A port list is not a host. "445/tcp, 3389/tcp, 5985/tcp on Windows Server" is
+complete and useless — the reader still has to work out that it's a domain
+controller before any of it means anything, and everything changes once that's
+said: SMB signing stops being hygiene and becomes a path to the directory.
+
+So each host is profiled, and the role is shown on its card, in the inventory,
+and (for the roles that change the reading) as a review item:
+
+| Role | Finding | Why it changes the review |
+|---|---|---|
+| Active Directory domain controller | HIGH | holds the credentials for everything that trusts it |
+| Virtualization host | HIGH | management plane ≈ physical access to every guest |
+| Kubernetes control plane | HIGH | API server + etcd *is* the cluster |
+| Container host | HIGH | an exposed Docker API is unauthenticated host root |
+| Mail server | MEDIUM | relay, spoofing and credential harvesting are decided here |
+| Database server | MEDIUM | the value is the data, so the question is who can reach the listener |
+| Network device | MEDIUM | sees and shapes other hosts' traffic; vendor defaults are routine |
+| Network printer | MEDIUM | queued documents, cached directory credentials, never patched |
+| Web / file / DNS server | — | shown as context; too common to be a finding |
+
+Three restraints, because role inference is guesswork in a confident voice:
+
+- **The signals are printed, not just the conclusion.** "Kerberos + LDAP +
+  global catalog + kpasswd" lets a reader overrule the label without
+  re-reading the port table.
+- **Confidence is scored and shown** (`strong` / `likely` / `possible`), and a
+  `possible` role is reported at a lower priority than a confirmed one — but
+  still reported, because a possible domain controller is worth ten minutes of
+  confirmation.
+- **A hostname is worth almost nothing.** A box called `dc01` that speaks
+  neither Kerberos nor LDAP is a label somebody typed, not a domain
+  controller, and naming alone can never exceed `possible`. The sample scan
+  contains exactly that case: `win-dc01.lab.internal` is **not** claimed as a
+  DC, because its DC ports were all filtered and the scan therefore has no
+  evidence — only a name.
+
+Port-number signals work without `-sV`: 88 + 389 + 3268 is a domain controller
+whether or not anything asked the services their names.
+
 ### Surface rules (about the target)
 
 | Rule | Fires when |
 |---|---|
+| `SRF-HOST-ROLE` | the host looks like a domain controller, hypervisor, control plane, container host, mail server, database server, network device or printer (see above) |
 | `SRF-UNIDENTIFIED` | an open port has no service name, or `tcpwrapped` — something is listening and nobody knows what |
 | `SRF-SENSITIVE-SERVICE` | datastores, orchestration control planes, cleartext protocols, remote admin, file sharing — matched on the **service name**, so Redis on port 7777 is still caught |
 | `SRF-SENSITIVE-PORT` | a known-sensitive port number (2375, 6443, 10250, 9200 …) even when nmap couldn't name the service |
@@ -288,7 +330,7 @@ findings that were already true at the baseline.
 ## Development
 
 ```bash
-make test     # 124 tests, offline, no nmap required
+make test     # 146 tests, offline, no nmap required
 make check    # tests, then confirm the committed samples match the current rules
 make sample   # regenerate the committed samples (report + diff, md + HTML)
 ```

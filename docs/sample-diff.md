@@ -2,9 +2,17 @@
 
 - **Baseline:** `tests/fixtures/baseline.xml`
 - **Current:** `tests/fixtures/sample.xml`
-- **Hosts:** 3 up → 2 up
-- **Open ports:** 6 → 9
-- **Changes:** 24 (11 high · 6 medium · 2 low · 5 info)
+- **Hosts:** 3 up → 3 up
+- **Open ports:** 6 → 19
+- **Changes:** 35 (14 high · 14 medium · 2 low · 5 info)
+
+## New hosts (1)
+
+#### HIGH — New host: 192.168.56.14 (dc01.lab.internal)
+
+`192.168.56.14 (dc01.lab.internal)`
+
+192.168.56.14 (dc01.lab.internal) was not in the previous scan at all, and now answers with 10 open port(s). Either it is new, or it was there and the previous scan could not see it -- both are worth knowing which.
 
 ## Ports opened (4)
 
@@ -60,7 +68,13 @@ A different service is answering on this port than last time. That is rarely a p
 
 OpenSSH 7.2 protocol 2.0 → OpenSSH 7.4 protocol 2.0. Usually patching; worth confirming it moved in the direction you expect.
 
-## New review items (13)
+## New review items (23)
+
+#### HIGH — New review item: Looks like a Container host (likely match)
+
+`192.168.56.10 (build01.lab.internal)`
+
+Matched on: Docker API over plain HTTP (2375). An exposed Docker API is root on the host, with no authentication step in the default configuration. This is inferred from the scan, not confirmed -- read the signals above and decide whether they describe this host.
 
 #### HIGH — New review item: `smb2-security-mode` output needs review (host)
 
@@ -98,11 +112,23 @@ nmap saw a `tcpwrapped` response: the TCP handshake completed and the service th
 
 An NSE script asserted a vulnerable state. Matched: `VULNERABLE: Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010) State: V...`
 
+#### HIGH — New review item: Looks like an Active Directory domain controller (strong match)
+
+`192.168.56.14 (dc01.lab.internal)`
+
+Matched on: LDAP banner names Active Directory; Kerberos (88) and LDAP (389) both open; Global catalog (3268/3269) open; Kerberos password change (464) open; a script reports a Windows domain; LDAPS (636) open; DNS (53) served by a Windows host; SMB (445) and RPC endpoint mapper (135) open; hostname suggests a domain controller (weak on its own). A domain controller holds the credentials for everything that trusts it, so every other item on this host is read differently: SMB signing is a relay path to the directory rather than a hygiene note, an exposed administration service is a route to Domain Admin, and an unpatched SMB stack is the whole estate. This is inferred from the scan, not confirmed -- read the signals above and decide whether they describe this host.
+
 #### MEDIUM — New review item: 1 service name(s) are port-table guesses
 
 `192.168.56.10 (build01.lab.internal)`
 
 These ports are labelled from nmap-services, not from a probe: 3306/tcp -> mysql. Treat the name as a hypothesis.
+
+#### MEDIUM — New review item: Looks like a Database server (strong match)
+
+`192.168.56.10 (build01.lab.internal)`
+
+Matched on: database listener open; a second database listener open; database software in a banner. The host's value is its data rather than its services, so the exposure question is who can reach the listener at all. This is inferred from the scan, not confirmed -- read the signals above and decide whether they describe this host.
 
 #### MEDIUM — New review item: Database exposed to the scanning position on 3306/tcp
 
@@ -127,6 +153,48 @@ No TLS was detected on this listener. Anything authenticated over it is recovera
 `192.168.56.10 (build01.lab.internal)` · `8081/tcp`
 
 Banner: `nginx 1.14.2`. A banner is not a patch level -- distributions backport fixes without changing it, and some services lie deliberately -- so this is a version to *check*, not a vulnerability.
+
+#### MEDIUM — New review item: 1 service name(s) are port-table guesses
+
+`192.168.56.14 (dc01.lab.internal)`
+
+These ports are labelled from nmap-services, not from a probe: 464/tcp -> kpasswd5. Treat the name as a hypothesis.
+
+#### MEDIUM — New review item: RPC endpoint mapper reachable on 135/tcp
+
+`192.168.56.14 (dc01.lab.internal)` · `135/tcp`
+
+`msrpc` -- Microsoft Windows RPC. RPC endpoint mapper reachable.
+
+#### MEDIUM — New review item: Legacy NetBIOS session service reachable on 139/tcp
+
+`192.168.56.14 (dc01.lab.internal)` · `139/tcp`
+
+`netbios-ssn` -- Microsoft Windows netbios-ssn. Legacy NetBIOS session service reachable.
+
+#### MEDIUM — New review item: Directory exposed without TLS on 3268/tcp
+
+`192.168.56.14 (dc01.lab.internal)` · `3268/tcp`
+
+`ldap` -- Microsoft Windows Active Directory LDAP Domain: lab.internal0., Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.
+
+#### MEDIUM — New review item: RDP reachable on 3389/tcp
+
+`192.168.56.14 (dc01.lab.internal)` · `3389/tcp`
+
+`ms-wbt-server` -- Microsoft Terminal Services. RDP reachable; review NLA and lockout policy.
+
+#### MEDIUM — New review item: Directory exposed without TLS on 389/tcp
+
+`192.168.56.14 (dc01.lab.internal)` · `389/tcp`
+
+`ldap` -- Microsoft Windows Active Directory LDAP Domain: lab.internal0., Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.
+
+#### MEDIUM — New review item: SMB reachable on 445/tcp
+
+`192.168.56.14 (dc01.lab.internal)` · `445/tcp`
+
+`microsoft-ds` -- Windows Server 2019 Standard. SMB reachable; review signing, SMBv1, and share ACLs.
 
 #### LOW — New review item: HTTP on a non-standard port (8081/tcp)
 

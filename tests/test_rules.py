@@ -198,7 +198,7 @@ class TestRenderers(unittest.TestCase):
     def test_json_is_machine_readable(self):
         import json
         payload = json.loads(to_json(self.scan, self.findings))
-        self.assertEqual(2, payload["scan"]["hosts_up"])
+        self.assertEqual(3, payload["scan"]["hosts_up"])
         self.assertGreater(payload["counts"]["high"], 0)
         self.assertTrue(all({"rule", "priority", "next_step"} <= set(f)
                             for f in payload["findings"]))

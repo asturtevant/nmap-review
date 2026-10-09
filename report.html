@@ -1,0 +1,3619 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nmap review</title>
+<style>
+:root{
+  --bg:#f6f6f4; --panel:#fff; --ink:#1b1d1e; --mute:#5f6568; --line:#e2e2de;
+  --high:#b32025; --medium:#9a5b06; --low:#2f6080; --info:#6b7173; --none:#2f7a52;
+  --high-bg:#fdf0ef; --medium-bg:#fdf5e8; --low-bg:#eff5f9; --info-bg:#f2f3f3;
+  --code:#f1f1ee;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141617; --panel:#1c1f20; --ink:#e9e9e6; --mute:#9aa1a3; --line:#2c3031;
+  --high:#ff7b74; --medium:#e9ab52; --low:#86b6d6; --info:#9aa1a3; --none:#74c295;
+  --high-bg:#2a1b1b; --medium-bg:#262017; --low-bg:#1a2228; --info-bg:#212425;
+  --code:#121415;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono,code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+header,section,footer{max-width:1100px;margin:0 auto;padding:0 24px}
+header{padding-top:36px}
+h1{font-size:26px;margin:0;letter-spacing:-.2px}
+.sub{margin:4px 0 0;color:var(--mute)}
+.hwrap{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line)}
+.chip.p-high{color:var(--high);background:var(--high-bg);border-color:var(--high)}
+.chip.p-medium{color:var(--medium);background:var(--medium-bg);border-color:var(--medium)}
+.chip.p-low{color:var(--low);background:var(--low-bg)}
+.chip.p-info{color:var(--info);background:var(--info-bg)}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:2px 24px;margin:20px 0 8px;padding:16px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px}
+.metarow{display:flex;gap:10px;font-size:13px;min-width:0}
+.metarow dt{color:var(--mute);min-width:74px}
+.metarow dd{margin:0;min-width:0;overflow-wrap:anywhere}
+h2{font-size:19px;margin:34px 0 6px;letter-spacing:-.1px}
+h3{font-size:15px;margin:26px 0 8px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--mute)}
+.lede{margin:0 0 16px;color:var(--mute);max-width:70ch}
+.ok{color:var(--mute);margin:0 0 12px}
+.warn{color:var(--high);font-weight:600}
+.mute{color:var(--mute)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.92em}
+/* summary tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px;margin:8px 0 4px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.tnum{font-size:28px;font-weight:650;line-height:1.1;letter-spacing:-.5px}
+.tlab{font-size:13px;font-weight:600}
+.tsub{font-size:11.5px;color:var(--mute)}
+/* host grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.card{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:7px;
+  background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--info);
+  border-radius:10px;padding:14px 16px;transition:transform .08s,box-shadow .12s}
+.card:hover,.card:focus-visible{transform:translateY(-1px);
+  box-shadow:0 2px 10px rgba(0,0,0,.09);outline:none;border-color:var(--mute)}
+.card.w-high{border-left-color:var(--high)}
+.card.w-medium{border-left-color:var(--medium)}
+.card.w-low{border-left-color:var(--low)}
+.card.w-none{border-left-color:var(--none)}
+.cardtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.addr{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:650}
+.names,.os{font-size:12px;color:var(--mute);overflow-wrap:anywhere}
+.cardstat{display:flex;gap:14px;font-size:12.5px;color:var(--mute)}
+.cardstat b{color:var(--ink);font-size:14px}
+.svc{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drill{font-size:12px;font-weight:600;color:var(--low)}
+.pills{display:flex;gap:4px}
+.pill{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;
+  background:var(--info-bg);color:var(--info)}
+.pill.p-high{background:var(--high-bg);color:var(--high)}
+.pill.p-medium{background:var(--medium-bg);color:var(--medium)}
+.pill.p-low{background:var(--low-bg);color:var(--low)}
+.pill.p-none{background:transparent;color:var(--none);border:1px solid var(--none)}
+/* detail */
+.detail{padding-top:8px}
+.dhead{display:flex;align-items:center;gap:14px;margin-top:30px}
+.dhead h2{margin:0;font-family:ui-monospace,Menlo,monospace}
+.back{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--low);
+  border:1px solid var(--line);border-radius:7px;padding:5px 11px;background:var(--panel)}
+.back:hover{border-color:var(--low)}
+.dmeta{color:var(--mute);font-size:13px;margin:8px 0 0;overflow-wrap:anywhere}
+table.ports{width:100%;border-collapse:collapse;font-size:13.5px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ports th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--mute);padding:9px 12px;border-bottom:1px solid var(--line);font-weight:600}
+.ports td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.ports td.ver{overflow-wrap:anywhere;min-width:11ch}
+.ports tr:last-child td{border-bottom:none}
+.ports tr.has-f{box-shadow:inset 3px 0 0 var(--info)}
+.ports tr.w-high{box-shadow:inset 3px 0 0 var(--high)}
+.ports tr.w-medium{box-shadow:inset 3px 0 0 var(--medium)}
+.ports tr.w-low{box-shadow:inset 3px 0 0 var(--low)}
+.pcell{white-space:nowrap}
+.pill,.badge,.tag,.state{white-space:nowrap}
+.ports td:last-child{display:flex;gap:4px;flex-wrap:wrap}
+.state{font-size:12px;font-weight:600}
+.s-open{color:var(--high)} .s-filtered{color:var(--mute)}
+.s-open-filtered{color:var(--medium)}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.tag.probed{background:var(--low-bg);color:var(--low)}
+.tag.guess{background:var(--medium-bg);color:var(--medium)}
+.tag.none{background:var(--high-bg);color:var(--high)}
+.tag.chg{background:var(--medium-bg);color:var(--medium);margin-left:6px}
+/* findings */
+.finding{background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid var(--info);border-radius:10px;padding:13px 16px;margin:0 0 10px}
+.finding.p-high{border-left-color:var(--high)}
+.finding.p-medium{border-left-color:var(--medium)}
+.finding.p-low{border-left-color:var(--low)}
+.fhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fhead h4{margin:0;font-size:14.5px;font-weight:650}
+.badge{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 8px;border-radius:5px;background:var(--info-bg);color:var(--info)}
+.badge.p-high{background:var(--high-bg);color:var(--high)}
+.badge.p-medium{background:var(--medium-bg);color:var(--medium)}
+.badge.p-low{background:var(--low-bg);color:var(--low)}
+.ftarget,.frule{font-size:11.5px;color:var(--mute)}
+.frule{margin-left:auto}
+.finding p{margin:9px 0 0;font-size:13.5px;max-width:78ch}
+.next{color:var(--mute)}
+.next b{color:var(--ink)}
+.delta{margin:8px 0 0;font-size:13px}
+.delta .was{color:var(--mute);text-decoration:line-through}
+.delta .now{color:var(--ink);font-weight:600}
+.delta .arrow{color:var(--mute);padding:0 4px}
+/* nse + commands */
+.nse{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  padding:9px 13px;margin:0 0 8px}
+.nse summary{cursor:pointer;font-size:13px}
+.nse pre,pre.cmds{background:var(--code);border-radius:7px;padding:11px 13px;
+  overflow-x:auto;font-size:12.5px;margin:9px 0 2px;white-space:pre-wrap;
+  overflow-wrap:anywhere}
+pre.cmds{border:1px solid var(--line)}
+footer{margin:46px auto 60px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--mute);font-size:12.5px}
+footer p{max-width:80ch}
+@media print{
+  .card,.back,.drill{display:none}
+  .detail{display:block!important}
+  .nse[open] pre{white-space:pre-wrap}
+  body{background:#fff}
+}
+</style>
+</head><body>
+
+<header>
+  <div class="hwrap">
+    <div>
+      <h1>nmap review</h1>
+      <p class="sub">What answered a probe, and what still needs a human.</p>
+    </div>
+    <div class="chips"><span class="chip p-high">7 high</span><span class="chip p-medium">134 medium</span><span class="chip p-low">10 low</span></div>
+  </div>
+  <dl class="meta"><div class="metarow"><dt>Command</dt><dd><code>/usr/lib/nmap/nmap -sC -sV -p- -oX scan.xml 192.168.56.0/24 | /usr/lib/nmap/nmap -sC -sV -p- -Pn -oX scan2.xml 192.168.56.0/24</code></dd></div>
+<div class="metarow"><dt>nmap</dt><dd>7.99</dd></div>
+<div class="metarow"><dt>Started</dt><dd>Fri Oct  9 08:57:07 2026</dd></div>
+<div class="metarow"><dt>Finished</dt><dd>Fri Oct  9 13:14:19 2026</dd></div>
+<div class="metarow"><dt>Source</dt><dd><code>scan.xml + scan2.xml</code></dd></div>
+<div class="metarow"><dt>Excluded</dt><dd>192.168.56.1 (pop-os.local) <span class="mute">(--exclude-host 192.168.56.1)</span>; 192.168.56.50 <span class="mute">(--exclude-host 192.168.56.50)</span></dd></div></dl>
+</header>
+
+<section id="summary">
+  <h2>Summary</h2>
+  <div class="tiles"><div class="tile"><span class="tnum">6</span><span class="tlab">Hosts scanned</span><span class="tsub">6 up · 0 not responding</span></div><div class="tile"><span class="tnum">121</span><span class="tlab">Open ports</span><span class="tsub">across 6 hosts</span></div><div class="tile"><span class="tnum">13</span><span class="tlab">Distinct services</span><span class="tsub">54×msrpc, 13×http, 12×ldap</span></div><div class="tile"><span class="tnum">2</span><span class="tlab">Hosts needing attention</span><span class="tsub">carry a high-priority review item</span></div><div class="tile"><span class="tnum">11</span><span class="tlab">Ports to identify</span><span class="tsub">0 unidentified · 11 guessed from port number</span></div><div class="tile"><span class="tnum">0</span><span class="tlab">Unresolved states</span><span class="tsub">open|filtered — silence, two causes</span></div></div>
+</section>
+
+<section id="trust">
+  <h2>How far to trust this scan</h2>
+  <p class="lede">These limit what the rest of the report can be used to claim.
+  A host with nothing interesting on it has not been cleared if the scan never
+  looked.</p>
+  
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>No UDP scan</h4>
+      
+      <span class="frule mono">COV-NO-UDP</span>
+    </div>
+    <p>DNS, SNMP, NTP, TFTP, IKE, NetBIOS and most amplification-capable services are UDP. None of them can appear in a TCP-only result.</p>
+    <p class="next"><b>Next step:</b> Run a targeted <code>-sU --top-ports 50</code> pass; a full UDP sweep is rarely worth the time.</p>
+  </article>
+</section>
+
+<section id="hosts">
+  <h2>Hosts</h2>
+  <p class="lede">Accent colour is the host's highest review priority. Select a
+  host to drill into its ports, findings and script output.</p>
+  <div class="grid">
+    <button class="card w-high" data-host="192.168.56.22"
+            aria-controls="host-192.168.56.22">
+      <div class="cardtop">
+        <span class="addr">192.168.56.22</span>
+        <span class="pills"><span class="pill p-high">3</span><span class="pill p-medium">23</span><span class="pill p-low">2</span></span>
+      </div>
+      
+      <div class="cardstat">
+        <span><b>19</b> open</span>
+        <span><b>0</b> filtered</span>
+        <span><b>0</b> unresolved</span>
+      </div>
+      <div class="os">OS not determined</div>
+      <div class="svc" title="http, microsoft-ds, ms-sql-s, ms-wbt-server, msrpc, netbios-ssn, wsmans">http, microsoft-ds, ms-sql-s, ms-wbt-server, msrpc, netbios-ssn, wsmans</div>
+      <span class="drill">View host →</span>
+    </button>
+    <button class="card w-high" data-host="192.168.56.23"
+            aria-controls="host-192.168.56.23">
+      <div class="cardtop">
+        <span class="addr">192.168.56.23</span>
+        <span class="pills"><span class="pill p-high">4</span><span class="pill p-medium">23</span><span class="pill p-low">2</span></span>
+      </div>
+      
+      <div class="cardstat">
+        <span><b>19</b> open</span>
+        <span><b>0</b> filtered</span>
+        <span><b>0</b> unresolved</span>
+      </div>
+      <div class="os">OS not determined</div>
+      <div class="svc" title="http, microsoft-ds, ms-sql-s, ms-wbt-server, msrpc, netbios-ssn, wsmans">http, microsoft-ds, ms-sql-s, ms-wbt-server, msrpc, netbios-ssn, wsmans</div>
+      <span class="drill">View host →</span>
+    </button>
+    <button class="card w-medium" data-host="192.168.56.10"
+            aria-controls="host-192.168.56.10">
+      <div class="cardtop">
+        <span class="addr">192.168.56.10</span>
+        <span class="pills"><span class="pill p-medium">31</span><span class="pill p-low">2</span></span>
+      </div>
+      
+      <div class="cardstat">
+        <span><b>29</b> open</span>
+        <span><b>0</b> filtered</span>
+        <span><b>0</b> unresolved</span>
+      </div>
+      <div class="os">OS not determined</div>
+      <div class="svc" title="domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn, wsmans">domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn, wsmans</div>
+      <span class="drill">View host →</span>
+    </button>
+    <button class="card w-medium" data-host="192.168.56.11"
+            aria-controls="host-192.168.56.11">
+      <div class="cardtop">
+        <span class="addr">192.168.56.11</span>
+        <span class="pills"><span class="pill p-medium">28</span><span class="pill p-low">2</span></span>
+      </div>
+      
+      <div class="cardstat">
+        <span><b>27</b> open</span>
+        <span><b>0</b> filtered</span>
+        <span><b>0</b> unresolved</span>
+      </div>
+      <div class="os">OS not determined</div>
+      <div class="svc" title="domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn, wsmans">domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn, wsmans</div>
+      <span class="drill">View host →</span>
+    </button>
+    <button class="card w-medium" data-host="192.168.56.12"
+            aria-controls="host-192.168.56.12">
+      <div class="cardtop">
+        <span class="addr">192.168.56.12</span>
+        <span class="pills"><span class="pill p-medium">28</span><span class="pill p-low">2</span></span>
+      </div>
+      
+      <div class="cardstat">
+        <span><b>27</b> open</span>
+        <span><b>0</b> filtered</span>
+        <span><b>0</b> unresolved</span>
+      </div>
+      <div class="os">OS not determined</div>
+      <div class="svc" title="domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn, wsmans">domain, http, kerberos-sec, kpasswd5, ldap, mc-nmf, microsoft-ds, ms-wbt-server, msrpc, ncacn_http, netbios-ssn, wsmans</div>
+      <span class="drill">View host →</span>
+    </button>
+    <button class="card w-none" data-host="192.168.56.100"
+            aria-controls="host-192.168.56.100">
+      <div class="cardtop">
+        <span class="addr">192.168.56.100</span>
+        <span class="pills"><span class="pill p-none">clear</span></span>
+      </div>
+      
+      <div class="cardstat">
+        <span><b>0</b> open</span>
+        <span><b>0</b> filtered</span>
+        <span><b>0</b> unresolved</span>
+      </div>
+      <div class="os">OS not determined</div>
+      <div class="svc" title="—">—</div>
+      <span class="drill">View host →</span>
+    </button></div>
+</section>
+
+<section class="detail" id="host-192.168.56.22" data-detail="192.168.56.22">
+  <div class="dhead">
+    <button class="back" data-back>← All hosts</button>
+    <h2>192.168.56.22</h2>
+  </div>
+  <p class="dmeta">Not shown: 65516 closed · MAC: 08:00:27:0E:9E:F1</p>
+  <h3>Ports</h3>
+  
+    <table class="ports">
+      <thead><tr><th>Port</th><th>State</th><th>Service</th><th>Version</th>
+      <th>Identified by</th><th>Review</th></tr></thead>
+      <tbody>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">80/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft IIS httpd 10.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 80/tcp; `http-methods` output needs review (80/tcp)">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">135/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 135/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">139/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>netbios-ssn</td>
+        <td class="mono ver">Microsoft Windows netbios-ssn</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Legacy NetBIOS session service reachable on 139/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">445/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>microsoft-ds</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="SMB reachable on 445/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-high">
+        <td class="mono pcell">1433/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-sql-s</td>
+        <td class="mono ver">Microsoft SQL Server 2019 15.00.2000.00; RTM</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-high" title="Database exposed to the scanning position on 1433/tcp; `ssl-cert` output needs review (1433/tcp)">1 High</span><span class="pill p-medium" title="Database exposed to the scanning position on 1433/tcp; `ssl-cert` output needs review (1433/tcp)">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-wbt-server</td>
+        <td class="mono ver">Microsoft Terminal Services</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3389/tcp); RDP reachable on 3389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5985/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5986/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>wsmans</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (5986/tcp)">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">47001/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49417/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49417/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49454/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49454/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49664/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49664/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49665/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49665/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49666/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49666/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49667/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49667/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49668/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49668/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49669/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49669/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49670/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49670/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-high">
+        <td class="mono pcell">56610/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-sql-s</td>
+        <td class="mono ver">Microsoft SQL Server 2019 15.00.2000.00; RTM</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-high" title="Database exposed to the scanning position on 56610/tcp; `ssl-cert` output needs review (56610/tcp)">1 High</span><span class="pill p-medium" title="Database exposed to the scanning position on 56610/tcp; `ssl-cert` output needs review (56610/tcp)">1 Medium</span></td>
+      </tr></tbody>
+    </table>
+  <h3>Review items (28)</h3>
+  
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>`smb2-security-mode` output needs review (host)</h4>
+      <span class="ftarget mono">192.168.56.22</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>SMB signing is not enforced; relay attacks are in scope. Matched: <code>3.1.1: Message signing enabled but not required</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>Database exposed to the scanning position on 1433/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 1433/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-sql-s</code> -- Microsoft SQL Server 2019 15.00.2000.00; RTM. Database exposed to the scanning position.</p>
+    <p class="next"><b>Next step:</b> <code>--script ms-sql-info,ms-sql-empty-password -p 1433</code>.</p>
+  </article>
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>Database exposed to the scanning position on 56610/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 56610/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-sql-s</code> -- Microsoft SQL Server 2019 15.00.2000.00; RTM. Database exposed to the scanning position.</p>
+    <p class="next"><b>Next step:</b> <code>--script ms-sql-info,ms-sql-empty-password -p 56610</code>.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>2 service name(s) are port-table guesses</h4>
+      <span class="ftarget mono">192.168.56.22</span>
+      <span class="frule mono">COV-GUESSED-SERVICES</span>
+    </div>
+    <p>These ports are labelled from nmap-services, not from a probe: 445/tcp -&gt; microsoft-ds, 5986/tcp -&gt; wsmans. Treat the name as a hypothesis.</p>
+    <p class="next"><b>Next step:</b> Confirm with <code>-sV</code> on exactly these ports.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>19 open ports on one host</h4>
+      <span class="ftarget mono">192.168.56.22</span>
+      <span class="frule mono">SRF-BROAD-SURFACE</span>
+    </div>
+    <p>A host this broad is either a jump box, a misconfigured multi-role server, or something that has accumulated services nobody owns any more.</p>
+    <p class="next"><b>Next step:</b> Reconcile the port list against what this host is supposed to run; everything unaccounted for is the finding.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 47001/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 47001/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 5985/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 5985/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 80/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 80/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (1433/tcp)</h4>
+      <span class="ftarget mono">192.168.56.22 1433/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:54:55 Not valid after: 2056-10-03T15:54:55</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.22 3389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T19:29:56 Not valid after: 2027-04-02T19:29:56</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (56610/tcp)</h4>
+      <span class="ftarget mono">192.168.56.22 56610/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:54:55 Not valid after: 2056-10-03T15:54:55</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (5986/tcp)</h4>
+      <span class="ftarget mono">192.168.56.22 5986/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T11:50:40 Not valid after: 2029-09-30T11:50:40</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`http-methods` output needs review (80/tcp)</h4>
+      <span class="ftarget mono">192.168.56.22 80/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Risky HTTP method or WebDAV enabled. Matched: <code>...ally risky methods: TRACE</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 135/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 135/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 135/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Legacy NetBIOS session service reachable on 139/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 139/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>netbios-ssn</code> -- Microsoft Windows netbios-ssn. Legacy NetBIOS session service reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 139/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RDP reachable on 3389/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 3389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-wbt-server</code> -- Microsoft Terminal Services. RDP reachable; review NLA and lockout policy.</p>
+    <p class="next"><b>Next step:</b> <code>--script rdp-ntlm-info,rdp-enum-encryption -p 3389</code>; confirm NLA is required.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>SMB reachable on 445/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 445/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>microsoft-ds</code> (service name inferred from the port number, not probed). SMB reachable; review signing, SMBv1, and share ACLs.</p>
+    <p class="next"><b>Next step:</b> <code>--script smb2-security-mode,smb-os-discovery,smb-enum-shares -p 445</code>.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49417/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49417/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49417/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49454/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49454/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49454/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49664/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49664/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49664/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49665/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49665/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49665/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49666/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49666/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49666/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49667/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49667/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49667/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49668/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49668/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49668/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49669/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49669/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49669/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49670/tcp</h4>
+      <span class="ftarget mono">192.168.56.22 49670/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49670/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (47001/tcp)</h4>
+      <span class="ftarget mono">192.168.56.22 47001/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (5985/tcp)</h4>
+      <span class="ftarget mono">192.168.56.22 5985/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <h3>Script output</h3>
+  
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-time</summary>
+    <pre>date: 2026-10-09T13:02:08
+  start_date: N/A</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · nbstat</summary>
+    <pre>NetBIOS name: CASTELBLACK, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 08:00:27:0e:9e:f1 (Oracle VirtualBox virtual NIC)</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-security-mode</summary>
+    <pre>3.1.1: 
+    Message signing enabled but not required</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · clock-skew</summary>
+    <pre>mean: 1s, deviation: 0s, median: 0s</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-IIS/10.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-title</summary>
+    <pre>Site doesn&#x27;t have a title (text/html).</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-methods</summary>
+    <pre>Potentially risky methods: TRACE</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=SSL_Self_Signed_Fallback
+Not valid before: 2026-10-03T15:54:55
+Not valid after:  2056-10-03T15:54:55</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ms-sql-info</summary>
+    <pre>192.168.56.22:1433: 
+    Version: 
+      name: Microsoft SQL Server 2019 RTM
+      number: 15.00.2000.00
+      Product: Microsoft SQL Server 2019
+      Service pack level: RTM
+      Post-SP patches applied: false
+    TCP port: 1433</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ms-sql-ntlm-info</summary>
+    <pre>192.168.56.22:1433: 
+    Target_Name: NORTH
+    NetBIOS_Domain_Name: NORTH
+    NetBIOS_Computer_Name: CASTELBLACK
+    DNS_Domain_Name: north.sevenkingdoms.local
+    DNS_Computer_Name: castelblack.north.sevenkingdoms.local
+    DNS_Tree_Name: sevenkingdoms.local
+    Product_Version: 10.0.17763</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · rdp-ntlm-info</summary>
+    <pre>Target_Name: NORTH
+  NetBIOS_Domain_Name: NORTH
+  NetBIOS_Computer_Name: CASTELBLACK
+  DNS_Domain_Name: north.sevenkingdoms.local
+  DNS_Computer_Name: castelblack.north.sevenkingdoms.local
+  DNS_Tree_Name: sevenkingdoms.local
+  Product_Version: 10.0.17763
+  System_Time: 2026-10-09T13:02:06+00:00</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=castelblack.north.sevenkingdoms.local
+Not valid before: 2026-10-01T19:29:56
+Not valid after:  2027-04-02T19:29:56</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · tls-alpn</summary>
+    <pre>h2
+  http/1.1</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=VAGRANT
+Subject Alternative Name: DNS:VAGRANT, DNS:vagrant
+Not valid before: 2026-10-01T11:50:40
+Not valid after:  2029-09-30T11:50:40</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">56610/tcp</span> · ms-sql-info</summary>
+    <pre>192.168.56.22:56610: 
+    Version: 
+      name: Microsoft SQL Server 2019 RTM
+      number: 15.00.2000.00
+      Product: Microsoft SQL Server 2019
+      Service pack level: RTM
+      Post-SP patches applied: false
+    TCP port: 56610</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">56610/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">56610/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=SSL_Self_Signed_Fallback
+Not valid before: 2026-10-03T15:54:55
+Not valid after:  2056-10-03T15:54:55</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">56610/tcp</span> · ms-sql-ntlm-info</summary>
+    <pre>192.168.56.22:56610: 
+    Target_Name: NORTH
+    NetBIOS_Domain_Name: NORTH
+    NetBIOS_Computer_Name: CASTELBLACK
+    DNS_Domain_Name: north.sevenkingdoms.local
+    DNS_Computer_Name: castelblack.north.sevenkingdoms.local
+    DNS_Tree_Name: sevenkingdoms.local
+    Product_Version: 10.0.17763</pre>
+  </details>
+</section>
+
+<section class="detail" id="host-192.168.56.23" data-detail="192.168.56.23">
+  <div class="dhead">
+    <button class="back" data-back>← All hosts</button>
+    <h2>192.168.56.23</h2>
+  </div>
+  <p class="dmeta">Not shown: 65516 closed · MAC: 08:00:27:97:5D:CE</p>
+  <h3>Ports</h3>
+  
+    <table class="ports">
+      <thead><tr><th>Port</th><th>State</th><th>Service</th><th>Version</th>
+      <th>Identified by</th><th>Review</th></tr></thead>
+      <tbody>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">80/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft IIS httpd 10.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 80/tcp; `http-methods` output needs review (80/tcp)">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">135/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 135/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">139/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>netbios-ssn</td>
+        <td class="mono ver">Microsoft Windows netbios-ssn</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Legacy NetBIOS session service reachable on 139/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">445/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>microsoft-ds</td>
+        <td class="mono ver">Windows Server 2016 Standard Evaluation 14393 microsoft-ds</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="SMB reachable on 445/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-high">
+        <td class="mono pcell">1433/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-sql-s</td>
+        <td class="mono ver">Microsoft SQL Server 2019 15.00.2000.00; RTM</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-high" title="Database exposed to the scanning position on 1433/tcp; `ssl-cert` output needs review (1433/tcp)">1 High</span><span class="pill p-medium" title="Database exposed to the scanning position on 1433/tcp; `ssl-cert` output needs review (1433/tcp)">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-wbt-server</td>
+        <td class="mono ver">Microsoft Terminal Services</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3389/tcp); RDP reachable on 3389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5985/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5986/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>wsmans</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (5986/tcp)">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">47001/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49664/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49664/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49665/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49665/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49666/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49666/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49667/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49667/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49668/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49668/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49671/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49671/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49673/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49673/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49688/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49688/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49781/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49781/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-high">
+        <td class="mono pcell">58839/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-sql-s</td>
+        <td class="mono ver">Microsoft SQL Server 2019 15.00.2000.00; RTM</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-high" title="Database exposed to the scanning position on 58839/tcp; `ssl-cert` output needs review (58839/tcp)">1 High</span><span class="pill p-medium" title="Database exposed to the scanning position on 58839/tcp; `ssl-cert` output needs review (58839/tcp)">1 Medium</span></td>
+      </tr></tbody>
+    </table>
+  <h3>Review items (29)</h3>
+  
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>`smb2-security-mode` output needs review (host)</h4>
+      <span class="ftarget mono">192.168.56.23</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>SMB signing is not enforced; relay attacks are in scope. Matched: <code>3.1.1: Message signing enabled but not required</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>`smb-security-mode` output needs review (host)</h4>
+      <span class="ftarget mono">192.168.56.23</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>SMB signing is not enforced; relay attacks are in scope. Matched: <code>...sponse: supported message_signing: disabled (dangerous, but default)</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>Database exposed to the scanning position on 1433/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 1433/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-sql-s</code> -- Microsoft SQL Server 2019 15.00.2000.00; RTM. Database exposed to the scanning position.</p>
+    <p class="next"><b>Next step:</b> <code>--script ms-sql-info,ms-sql-empty-password -p 1433</code>.</p>
+  </article>
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>Database exposed to the scanning position on 58839/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 58839/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-sql-s</code> -- Microsoft SQL Server 2019 15.00.2000.00; RTM. Database exposed to the scanning position.</p>
+    <p class="next"><b>Next step:</b> <code>--script ms-sql-info,ms-sql-empty-password -p 58839</code>.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>1 service name(s) are port-table guesses</h4>
+      <span class="ftarget mono">192.168.56.23</span>
+      <span class="frule mono">COV-GUESSED-SERVICES</span>
+    </div>
+    <p>These ports are labelled from nmap-services, not from a probe: 5986/tcp -&gt; wsmans. Treat the name as a hypothesis.</p>
+    <p class="next"><b>Next step:</b> Confirm with <code>-sV</code> on exactly these ports.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>19 open ports on one host</h4>
+      <span class="ftarget mono">192.168.56.23</span>
+      <span class="frule mono">SRF-BROAD-SURFACE</span>
+    </div>
+    <p>A host this broad is either a jump box, a misconfigured multi-role server, or something that has accumulated services nobody owns any more.</p>
+    <p class="next"><b>Next step:</b> Reconcile the port list against what this host is supposed to run; everything unaccounted for is the finding.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 47001/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 47001/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 5985/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 5985/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 80/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 80/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (1433/tcp)</h4>
+      <span class="ftarget mono">192.168.56.23 1433/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:56:14 Not valid after: 2056-10-03T15:56:14</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.23 3389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T19:29:56 Not valid after: 2027-04-02T19:29:56</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (58839/tcp)</h4>
+      <span class="ftarget mono">192.168.56.23 58839/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:56:14 Not valid after: 2056-10-03T15:56:14</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (5986/tcp)</h4>
+      <span class="ftarget mono">192.168.56.23 5986/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T11:57:28 Not valid after: 2029-09-30T11:57:28</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`http-methods` output needs review (80/tcp)</h4>
+      <span class="ftarget mono">192.168.56.23 80/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Risky HTTP method or WebDAV enabled. Matched: <code>...ally risky methods: TRACE</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 135/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 135/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 135/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Legacy NetBIOS session service reachable on 139/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 139/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>netbios-ssn</code> -- Microsoft Windows netbios-ssn. Legacy NetBIOS session service reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 139/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RDP reachable on 3389/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 3389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-wbt-server</code> -- Microsoft Terminal Services. RDP reachable; review NLA and lockout policy.</p>
+    <p class="next"><b>Next step:</b> <code>--script rdp-ntlm-info,rdp-enum-encryption -p 3389</code>; confirm NLA is required.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>SMB reachable on 445/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 445/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>microsoft-ds</code> -- Windows Server 2016 Standard Evaluation 14393 microsoft-ds. SMB reachable; review signing, SMBv1, and share ACLs.</p>
+    <p class="next"><b>Next step:</b> <code>--script smb2-security-mode,smb-os-discovery,smb-enum-shares -p 445</code>.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49664/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49664/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49664/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49665/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49665/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49665/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49666/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49666/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49666/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49667/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49667/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49667/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49668/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49668/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49668/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49671/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49671/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49671/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49673/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49673/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49673/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49688/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49688/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49688/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49781/tcp</h4>
+      <span class="ftarget mono">192.168.56.23 49781/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49781/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (47001/tcp)</h4>
+      <span class="ftarget mono">192.168.56.23 47001/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (5985/tcp)</h4>
+      <span class="ftarget mono">192.168.56.23 5985/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <h3>Script output</h3>
+  
+  <details class="nse">
+    <summary><span class="mono">host</span> · clock-skew</summary>
+    <pre>mean: 42m01s, deviation: 2h12m49s, median: 0s</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · nbstat</summary>
+    <pre>NetBIOS name: BRAAVOS, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 08:00:27:97:5d:ce (Oracle VirtualBox virtual NIC)</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-security-mode</summary>
+    <pre>3.1.1: 
+    Message signing enabled but not required</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-time</summary>
+    <pre>date: 2026-10-09T13:02:08
+  start_date: 2026-10-03T15:56:10</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb-security-mode</summary>
+    <pre>account_used: guest
+  authentication_level: user
+  challenge_response: supported
+  message_signing: disabled (dangerous, but default)</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb-os-discovery</summary>
+    <pre>OS: Windows Server 2016 Standard Evaluation 14393 (Windows Server 2016 Standard Evaluation 6.3)
+  Computer name: braavos
+  NetBIOS computer name: BRAAVOS\x00
+  Domain name: essos.local
+  Forest name: essos.local
+  FQDN: braavos.essos.local
+  System time: 2026-10-09T06:02:07-07:00</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-methods</summary>
+    <pre>Potentially risky methods: TRACE</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-title</summary>
+    <pre>IIS Windows Server</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-IIS/10.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ms-sql-info</summary>
+    <pre>192.168.56.23:1433: 
+    Version: 
+      name: Microsoft SQL Server 2019 RTM
+      number: 15.00.2000.00
+      Product: Microsoft SQL Server 2019
+      Service pack level: RTM
+      Post-SP patches applied: false
+    TCP port: 1433</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=SSL_Self_Signed_Fallback
+Not valid before: 2026-10-03T15:56:14
+Not valid after:  2056-10-03T15:56:14</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">1433/tcp</span> · ms-sql-ntlm-info</summary>
+    <pre>192.168.56.23:1433: 
+    Target_Name: ESSOS
+    NetBIOS_Domain_Name: ESSOS
+    NetBIOS_Computer_Name: BRAAVOS
+    DNS_Domain_Name: essos.local
+    DNS_Computer_Name: braavos.essos.local
+    DNS_Tree_Name: essos.local
+    Product_Version: 10.0.14393</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=braavos.essos.local
+Not valid before: 2026-10-01T19:29:56
+Not valid after:  2027-04-02T19:29:56</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · rdp-ntlm-info</summary>
+    <pre>Target_Name: ESSOS
+  NetBIOS_Domain_Name: ESSOS
+  NetBIOS_Computer_Name: BRAAVOS
+  DNS_Domain_Name: essos.local
+  DNS_Computer_Name: braavos.essos.local
+  DNS_Tree_Name: essos.local
+  Product_Version: 10.0.14393
+  System_Time: 2026-10-09T13:02:08+00:00</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=VAGRANT
+Subject Alternative Name: DNS:VAGRANT, DNS:vagrant
+Not valid before: 2026-10-01T11:57:28
+Not valid after:  2029-09-30T11:57:28</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · tls-alpn</summary>
+    <pre>h2
+  http/1.1</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">58839/tcp</span> · ms-sql-ntlm-info</summary>
+    <pre>192.168.56.23:58839: 
+    Target_Name: ESSOS
+    NetBIOS_Domain_Name: ESSOS
+    NetBIOS_Computer_Name: BRAAVOS
+    DNS_Domain_Name: essos.local
+    DNS_Computer_Name: braavos.essos.local
+    DNS_Tree_Name: essos.local
+    Product_Version: 10.0.14393</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">58839/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T13:02:13+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">58839/tcp</span> · ms-sql-info</summary>
+    <pre>192.168.56.23:58839: 
+    Version: 
+      name: Microsoft SQL Server 2019 RTM
+      number: 15.00.2000.00
+      Product: Microsoft SQL Server 2019
+      Service pack level: RTM
+      Post-SP patches applied: false
+    TCP port: 58839</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">58839/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=SSL_Self_Signed_Fallback
+Not valid before: 2026-10-03T15:56:14
+Not valid after:  2056-10-03T15:56:14</pre>
+  </details>
+</section>
+
+<section class="detail" id="host-192.168.56.10" data-detail="192.168.56.10">
+  <div class="dhead">
+    <button class="back" data-back>← All hosts</button>
+    <h2>192.168.56.10</h2>
+  </div>
+  <p class="dmeta">Not shown: 65506 closed · MAC: 08:00:27:B7:9E:F8</p>
+  <h3>Ports</h3>
+  
+    <table class="ports">
+      <thead><tr><th>Port</th><th>State</th><th>Service</th><th>Version</th>
+      <th>Identified by</th><th>Review</th></tr></thead>
+      <tbody>
+      <tr class="">
+        <td class="mono pcell">53/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>domain</td>
+        <td class="mono ver">Simple DNS Plus</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">80/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft IIS httpd 10.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 80/tcp; `http-methods` output needs review (80/tcp)">2 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">88/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kerberos-sec</td>
+        <td class="mono ver">Microsoft Windows Kerberos server time: 2026-10-09 12:57:49Z</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">135/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 135/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">139/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>netbios-ssn</td>
+        <td class="mono ver">Microsoft Windows netbios-ssn</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Legacy NetBIOS session service reachable on 139/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (389/tcp); Directory exposed without TLS on 389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">445/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>microsoft-ds</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="SMB reachable on 445/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">464/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kpasswd5</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">593/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ncacn_http</td>
+        <td class="mono ver">Microsoft Windows RPC over HTTP 1.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">636/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (636/tcp); Directory exposed without TLS on 636/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3268/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3268/tcp); Directory exposed without TLS on 3268/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3269/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3269/tcp); Directory exposed without TLS on 3269/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-wbt-server</td>
+        <td class="mono ver">Microsoft Terminal Services</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3389/tcp); RDP reachable on 3389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5985/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5986/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>wsmans</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (5986/tcp)">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">9389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>mc-nmf</td>
+        <td class="mono ver">.NET Message Framing</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">47001/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49664/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49664/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49665/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49665/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49666/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49666/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49667/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49667/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49669/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49669/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">49670/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ncacn_http</td>
+        <td class="mono ver">Microsoft Windows RPC over HTTP 1.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49672/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49672/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49675/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49675/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49685/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49685/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49699/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49699/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49824/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49824/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49911/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49911/tcp">1 Medium</span></td>
+      </tr></tbody>
+    </table>
+  <h3>Review items (33)</h3>
+  
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>3 service name(s) are port-table guesses</h4>
+      <span class="ftarget mono">192.168.56.10</span>
+      <span class="frule mono">COV-GUESSED-SERVICES</span>
+    </div>
+    <p>These ports are labelled from nmap-services, not from a probe: 445/tcp -&gt; microsoft-ds, 464/tcp -&gt; kpasswd5, 5986/tcp -&gt; wsmans. Treat the name as a hypothesis.</p>
+    <p class="next"><b>Next step:</b> Confirm with <code>-sV</code> on exactly these ports.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>29 open ports on one host</h4>
+      <span class="ftarget mono">192.168.56.10</span>
+      <span class="frule mono">SRF-BROAD-SURFACE</span>
+    </div>
+    <p>A host this broad is either a jump box, a misconfigured multi-role server, or something that has accumulated services nobody owns any more.</p>
+    <p class="next"><b>Next step:</b> Reconcile the port list against what this host is supposed to run; everything unaccounted for is the finding.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 47001/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 47001/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 5985/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 5985/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 80/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 80/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3268/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 3268/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:20 Not valid after: 2027-10-02T19:30:20</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3269/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 3269/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:20 Not valid after: 2027-10-02T19:30:20</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 3389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T19:05:48 Not valid after: 2027-04-02T19:05:48</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:20 Not valid after: 2027-10-02T19:30:20</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (5986/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 5986/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T11:41:02 Not valid after: 2029-09-30T11:41:02</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (636/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 636/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:20 Not valid after: 2027-10-02T19:30:20</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`http-methods` output needs review (80/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 80/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Risky HTTP method or WebDAV enabled. Matched: <code>...ally risky methods: TRACE</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 135/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 135/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 135/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Legacy NetBIOS session service reachable on 139/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 139/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>netbios-ssn</code> -- Microsoft Windows netbios-ssn. Legacy NetBIOS session service reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 139/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 3268/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 3268/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 3268</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 3269/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 3269/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 3269</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RDP reachable on 3389/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 3389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-wbt-server</code> -- Microsoft Terminal Services. RDP reachable; review NLA and lockout policy.</p>
+    <p class="next"><b>Next step:</b> <code>--script rdp-ntlm-info,rdp-enum-encryption -p 3389</code>; confirm NLA is required.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 389/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 389</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>SMB reachable on 445/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 445/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>microsoft-ds</code> (service name inferred from the port number, not probed). SMB reachable; review signing, SMBv1, and share ACLs.</p>
+    <p class="next"><b>Next step:</b> <code>--script smb2-security-mode,smb-os-discovery,smb-enum-shares -p 445</code>.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49664/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49664/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49664/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49665/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49665/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49665/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49666/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49666/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49666/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49667/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49667/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49667/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49669/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49669/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49669/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49672/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49672/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49672/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49675/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49675/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49675/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49685/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49685/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49685/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49699/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49699/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49699/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49824/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49824/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49824/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49911/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 49911/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49911/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 636/tcp</h4>
+      <span class="ftarget mono">192.168.56.10 636/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 636</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (47001/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 47001/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (5985/tcp)</h4>
+      <span class="ftarget mono">192.168.56.10 5985/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <h3>Script output</h3>
+  
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-security-mode</summary>
+    <pre>3.1.1: 
+    Message signing enabled and required</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · clock-skew</summary>
+    <pre>mean: 1s, deviation: 0s, median: 0s</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · nbstat</summary>
+    <pre>NetBIOS name: KINGSLANDING, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 08:00:27:b7:9e:f8 (Oracle VirtualBox virtual NIC)</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-time</summary>
+    <pre>date: 2026-10-09T12:59:50
+  start_date: N/A</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-IIS/10.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-methods</summary>
+    <pre>Potentially risky methods: TRACE</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">80/tcp</span> · http-title</summary>
+    <pre>IIS Windows Server</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=kingslanding.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:kingslanding.sevenkingdoms.local
+Not valid before: 2026-10-02T19:30:20
+Not valid after:  2027-10-02T19:30:20</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">636/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=kingslanding.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:kingslanding.sevenkingdoms.local
+Not valid before: 2026-10-02T19:30:20
+Not valid after:  2027-10-02T19:30:20</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">636/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3268/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3268/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=kingslanding.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:kingslanding.sevenkingdoms.local
+Not valid before: 2026-10-02T19:30:20
+Not valid after:  2027-10-02T19:30:20</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3269/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=kingslanding.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:kingslanding.sevenkingdoms.local
+Not valid before: 2026-10-02T19:30:20
+Not valid after:  2027-10-02T19:30:20</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3269/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · rdp-ntlm-info</summary>
+    <pre>Target_Name: SEVENKINGDOMS
+  NetBIOS_Domain_Name: SEVENKINGDOMS
+  NetBIOS_Computer_Name: KINGSLANDING
+  DNS_Domain_Name: sevenkingdoms.local
+  DNS_Computer_Name: kingslanding.sevenkingdoms.local
+  DNS_Tree_Name: sevenkingdoms.local
+  Product_Version: 10.0.17763
+  System_Time: 2026-10-09T12:59:48+00:00</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=kingslanding.sevenkingdoms.local
+Not valid before: 2026-10-01T19:05:48
+Not valid after:  2027-04-02T19:05:48</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · tls-alpn</summary>
+    <pre>h2
+  http/1.1</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=VAGRANT
+Subject Alternative Name: DNS:VAGRANT, DNS:vagrant
+Not valid before: 2026-10-01T11:41:02
+Not valid after:  2029-09-30T11:41:02</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+</section>
+
+<section class="detail" id="host-192.168.56.11" data-detail="192.168.56.11">
+  <div class="dhead">
+    <button class="back" data-back>← All hosts</button>
+    <h2>192.168.56.11</h2>
+  </div>
+  <p class="dmeta">Not shown: 65508 closed · MAC: 08:00:27:17:69:4B</p>
+  <h3>Ports</h3>
+  
+    <table class="ports">
+      <thead><tr><th>Port</th><th>State</th><th>Service</th><th>Version</th>
+      <th>Identified by</th><th>Review</th></tr></thead>
+      <tbody>
+      <tr class="">
+        <td class="mono pcell">53/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>domain</td>
+        <td class="mono ver">Simple DNS Plus</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">88/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kerberos-sec</td>
+        <td class="mono ver">Microsoft Windows Kerberos server time: 2026-10-09 12:57:55Z</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">135/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 135/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">139/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>netbios-ssn</td>
+        <td class="mono ver">Microsoft Windows netbios-ssn</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Legacy NetBIOS session service reachable on 139/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (389/tcp); Directory exposed without TLS on 389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">445/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>microsoft-ds</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="SMB reachable on 445/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">464/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kpasswd5</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">593/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ncacn_http</td>
+        <td class="mono ver">Microsoft Windows RPC over HTTP 1.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">636/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (636/tcp); Directory exposed without TLS on 636/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3268/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3268/tcp); Directory exposed without TLS on 3268/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3269/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3269/tcp); Directory exposed without TLS on 3269/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-wbt-server</td>
+        <td class="mono ver">Microsoft Terminal Services</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3389/tcp); RDP reachable on 3389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5985/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5986/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>wsmans</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (5986/tcp)">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">9389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>mc-nmf</td>
+        <td class="mono ver">.NET Message Framing</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">47001/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49664/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49664/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49665/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49665/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49666/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49666/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49667/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49667/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">49670/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ncacn_http</td>
+        <td class="mono ver">Microsoft Windows RPC over HTTP 1.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49671/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49671/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49673/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49673/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49676/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49676/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49708/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49708/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49800/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49800/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">63871/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 63871/tcp">1 Medium</span></td>
+      </tr></tbody>
+    </table>
+  <h3>Review items (30)</h3>
+  
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>3 service name(s) are port-table guesses</h4>
+      <span class="ftarget mono">192.168.56.11</span>
+      <span class="frule mono">COV-GUESSED-SERVICES</span>
+    </div>
+    <p>These ports are labelled from nmap-services, not from a probe: 445/tcp -&gt; microsoft-ds, 464/tcp -&gt; kpasswd5, 5986/tcp -&gt; wsmans. Treat the name as a hypothesis.</p>
+    <p class="next"><b>Next step:</b> Confirm with <code>-sV</code> on exactly these ports.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>27 open ports on one host</h4>
+      <span class="ftarget mono">192.168.56.11</span>
+      <span class="frule mono">SRF-BROAD-SURFACE</span>
+    </div>
+    <p>A host this broad is either a jump box, a misconfigured multi-role server, or something that has accumulated services nobody owns any more.</p>
+    <p class="next"><b>Next step:</b> Reconcile the port list against what this host is supposed to run; everything unaccounted for is the finding.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 47001/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 47001/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 5985/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 5985/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3268/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 3268/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:12:56 Not valid after: 2027-10-03T15:12:56</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3269/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 3269/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:12:56 Not valid after: 2027-10-03T15:12:56</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 3389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T19:17:09 Not valid after: 2027-04-02T19:17:09</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:12:56 Not valid after: 2027-10-03T15:12:56</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (5986/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 5986/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T11:42:53 Not valid after: 2029-09-30T11:42:53</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (636/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 636/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-03T15:12:56 Not valid after: 2027-10-03T15:12:56</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 135/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 135/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 135/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Legacy NetBIOS session service reachable on 139/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 139/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>netbios-ssn</code> -- Microsoft Windows netbios-ssn. Legacy NetBIOS session service reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 139/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 3268/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 3268/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 3268</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 3269/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 3269/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 3269</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RDP reachable on 3389/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 3389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-wbt-server</code> -- Microsoft Terminal Services. RDP reachable; review NLA and lockout policy.</p>
+    <p class="next"><b>Next step:</b> <code>--script rdp-ntlm-info,rdp-enum-encryption -p 3389</code>; confirm NLA is required.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 389/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 389</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>SMB reachable on 445/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 445/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>microsoft-ds</code> (service name inferred from the port number, not probed). SMB reachable; review signing, SMBv1, and share ACLs.</p>
+    <p class="next"><b>Next step:</b> <code>--script smb2-security-mode,smb-os-discovery,smb-enum-shares -p 445</code>.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49664/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49664/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49664/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49665/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49665/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49665/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49666/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49666/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49666/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49667/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49667/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49667/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49671/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49671/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49671/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49673/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49673/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49673/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49676/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49676/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49676/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49708/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49708/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49708/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49800/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 49800/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49800/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 636/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 636/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: sevenkingdoms.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 636</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 63871/tcp</h4>
+      <span class="ftarget mono">192.168.56.11 63871/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 63871/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (47001/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 47001/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (5985/tcp)</h4>
+      <span class="ftarget mono">192.168.56.11 5985/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <h3>Script output</h3>
+  
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-time</summary>
+    <pre>date: 2026-10-09T12:59:50
+  start_date: N/A</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-security-mode</summary>
+    <pre>3.1.1: 
+    Message signing enabled and required</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · nbstat</summary>
+    <pre>NetBIOS name: WINTERFELL, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 08:00:27:17:69:4b (Oracle VirtualBox virtual NIC)</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=winterfell.north.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:winterfell.north.sevenkingdoms.local
+Not valid before: 2026-10-03T15:12:56
+Not valid after:  2027-10-03T15:12:56</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">636/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=winterfell.north.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:winterfell.north.sevenkingdoms.local
+Not valid before: 2026-10-03T15:12:56
+Not valid after:  2027-10-03T15:12:56</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">636/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3268/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=winterfell.north.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:winterfell.north.sevenkingdoms.local
+Not valid before: 2026-10-03T15:12:56
+Not valid after:  2027-10-03T15:12:56</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3268/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3269/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3269/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=winterfell.north.sevenkingdoms.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:winterfell.north.sevenkingdoms.local
+Not valid before: 2026-10-03T15:12:56
+Not valid after:  2027-10-03T15:12:56</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · rdp-ntlm-info</summary>
+    <pre>Target_Name: NORTH
+  NetBIOS_Domain_Name: NORTH
+  NetBIOS_Computer_Name: WINTERFELL
+  DNS_Domain_Name: north.sevenkingdoms.local
+  DNS_Computer_Name: winterfell.north.sevenkingdoms.local
+  DNS_Tree_Name: sevenkingdoms.local
+  Product_Version: 10.0.17763
+  System_Time: 2026-10-09T12:59:51+00:00</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=winterfell.north.sevenkingdoms.local
+Not valid before: 2026-10-01T19:17:09
+Not valid after:  2027-04-02T19:17:09</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · tls-alpn</summary>
+    <pre>h2
+  http/1.1</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=VAGRANT
+Subject Alternative Name: DNS:VAGRANT, DNS:vagrant
+Not valid before: 2026-10-01T11:42:53
+Not valid after:  2029-09-30T11:42:53</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+</section>
+
+<section class="detail" id="host-192.168.56.12" data-detail="192.168.56.12">
+  <div class="dhead">
+    <button class="back" data-back>← All hosts</button>
+    <h2>192.168.56.12</h2>
+  </div>
+  <p class="dmeta">Not shown: 65508 closed · MAC: 08:00:27:2B:85:AD</p>
+  <h3>Ports</h3>
+  
+    <table class="ports">
+      <thead><tr><th>Port</th><th>State</th><th>Service</th><th>Version</th>
+      <th>Identified by</th><th>Review</th></tr></thead>
+      <tbody>
+      <tr class="">
+        <td class="mono pcell">53/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>domain</td>
+        <td class="mono ver">Simple DNS Plus</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">88/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kerberos-sec</td>
+        <td class="mono ver">Microsoft Windows Kerberos server time: 2026-10-09 12:58:45Z</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">135/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 135/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">139/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>netbios-ssn</td>
+        <td class="mono ver">Microsoft Windows netbios-ssn</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Legacy NetBIOS session service reachable on 139/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (389/tcp); Directory exposed without TLS on 389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">445/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>microsoft-ds</td>
+        <td class="mono ver">Windows Server 2016 Standard Evaluation 14393 microsoft-ds workgroup: ESSOS</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="SMB reachable on 445/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">464/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kpasswd5</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">593/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ncacn_http</td>
+        <td class="mono ver">Microsoft Windows RPC over HTTP 1.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">636/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (636/tcp); Directory exposed without TLS on 636/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3268/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3268/tcp); Directory exposed without TLS on 3268/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3269/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3269/tcp); Directory exposed without TLS on 3269/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-wbt-server</td>
+        <td class="mono ver">Microsoft Terminal Services</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (3389/tcp); RDP reachable on 3389/tcp">2 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5985/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 5985/tcp; HTTP on a non-standard port (5985/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">5986/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>wsmans</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td><span class="pill p-medium" title="`ssl-cert` output needs review (5986/tcp)">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">9389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>mc-nmf</td>
+        <td class="mono ver">.NET Message Framing</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">47001/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>http</td>
+        <td class="mono ver">Microsoft HTTPAPI httpd 2.0 SSDP/UPnP</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Medium</span><span class="pill p-low" title="Cleartext HTTP on 47001/tcp; HTTP on a non-standard port (47001/tcp)">1 Low</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49664/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49664/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49665/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49665/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49666/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49666/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49667/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49667/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">49669/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ncacn_http</td>
+        <td class="mono ver">Microsoft Windows RPC over HTTP 1.0</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49670/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49670/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49672/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49672/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49675/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49675/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49685/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49685/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49712/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49712/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">49748/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 49748/tcp">1 Medium</span></td>
+      </tr></tbody>
+    </table>
+  <h3>Review items (30)</h3>
+  
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>2 service name(s) are port-table guesses</h4>
+      <span class="ftarget mono">192.168.56.12</span>
+      <span class="frule mono">COV-GUESSED-SERVICES</span>
+    </div>
+    <p>These ports are labelled from nmap-services, not from a probe: 464/tcp -&gt; kpasswd5, 5986/tcp -&gt; wsmans. Treat the name as a hypothesis.</p>
+    <p class="next"><b>Next step:</b> Confirm with <code>-sV</code> on exactly these ports.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>27 open ports on one host</h4>
+      <span class="ftarget mono">192.168.56.12</span>
+      <span class="frule mono">SRF-BROAD-SURFACE</span>
+    </div>
+    <p>A host this broad is either a jump box, a misconfigured multi-role server, or something that has accumulated services nobody owns any more.</p>
+    <p class="next"><b>Next step:</b> Reconcile the port list against what this host is supposed to run; everything unaccounted for is the finding.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 47001/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 47001/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Cleartext HTTP on 5985/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 5985/tcp</span>
+      <span class="frule mono">SRF-CLEARTEXT-HTTP</span>
+    </div>
+    <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
+    <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3268/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 3268/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:33 Not valid after: 2027-10-02T19:30:33</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3269/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 3269/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:33 Not valid after: 2027-10-02T19:30:33</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (3389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 3389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T19:05:48 Not valid after: 2027-04-02T19:05:48</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (389/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 389/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:33 Not valid after: 2027-10-02T19:30:33</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (5986/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 5986/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-01T11:48:07 Not valid after: 2029-09-30T11:48:07</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>`ssl-cert` output needs review (636/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 636/tcp</span>
+      <span class="frule mono">SRF-SCRIPT-SIGNAL</span>
+    </div>
+    <p>Certificate validity window needs checking. Matched: <code>...2026-10-02T19:30:33 Not valid after: 2027-10-02T19:30:33</code></p>
+    <p class="next"><b>Next step:</b> Read the full script output below and verify the claim directly; NSE reports both false positives and stale CVE mappings.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 135/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 135/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 135/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Legacy NetBIOS session service reachable on 139/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 139/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>netbios-ssn</code> -- Microsoft Windows netbios-ssn. Legacy NetBIOS session service reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 139/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 3268/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 3268/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 3268</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 3269/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 3269/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 3269</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RDP reachable on 3389/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 3389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-wbt-server</code> -- Microsoft Terminal Services. RDP reachable; review NLA and lockout policy.</p>
+    <p class="next"><b>Next step:</b> <code>--script rdp-ntlm-info,rdp-enum-encryption -p 3389</code>; confirm NLA is required.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 389/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 389</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>SMB reachable on 445/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 445/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>microsoft-ds</code> -- Windows Server 2016 Standard Evaluation 14393 microsoft-ds workgroup: ESSOS. SMB reachable; review signing, SMBv1, and share ACLs.</p>
+    <p class="next"><b>Next step:</b> <code>--script smb2-security-mode,smb-os-discovery,smb-enum-shares -p 445</code>.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49664/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49664/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49664/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49665/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49665/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49665/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49666/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49666/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49666/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49667/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49667/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49667/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49670/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49670/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49670/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49672/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49672/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49672/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49675/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49675/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49675/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49685/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49685/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49685/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49712/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49712/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49712/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 49748/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 49748/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 49748/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 636/tcp</h4>
+      <span class="ftarget mono">192.168.56.12 636/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: essos.local, Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 636</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (47001/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 47001/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <article class="finding p-low" data-priority="low">
+    <div class="fhead">
+      <span class="badge p-low">Low</span>
+      <h4>HTTP on a non-standard port (5985/tcp)</h4>
+      <span class="ftarget mono">192.168.56.12 5985/tcp</span>
+      <span class="frule mono">SRF-HTTP-ODD-PORT</span>
+    </div>
+    <p>Web services on unexpected ports are usually admin interfaces, dev builds or appliances -- the things least likely to be in an asset inventory.</p>
+    <p class="next"><b>Next step:</b> Open it and identify the application; run <code>--script http-title,http-headers</code> at minimum.</p>
+  </article>
+  <h3>Script output</h3>
+  
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-time</summary>
+    <pre>date: 2026-10-09T12:59:52
+  start_date: 2026-10-03T15:56:24</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · nbstat</summary>
+    <pre>NetBIOS name: MEEREEN, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 08:00:27:2b:85:ad (Oracle VirtualBox virtual NIC)</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb-security-mode</summary>
+    <pre>account_used: &lt;blank&gt;
+  authentication_level: user
+  challenge_response: supported
+  message_signing: required</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · clock-skew</summary>
+    <pre>mean: 42m01s, deviation: 2h12m50s, median: 0s</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb-os-discovery</summary>
+    <pre>OS: Windows Server 2016 Standard Evaluation 14393 (Windows Server 2016 Standard Evaluation 6.3)
+  Computer name: meereen
+  NetBIOS computer name: MEEREEN\x00
+  Domain name: essos.local
+  Forest name: essos.local
+  FQDN: meereen.essos.local
+  System time: 2026-10-09T05:59:52-07:00</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-security-mode</summary>
+    <pre>3.1.1: 
+    Message signing enabled and required</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=meereen.essos.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:meereen.essos.local
+Not valid before: 2026-10-02T19:30:33
+Not valid after:  2027-10-02T19:30:33</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">636/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">636/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=meereen.essos.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:meereen.essos.local
+Not valid before: 2026-10-02T19:30:33
+Not valid after:  2027-10-02T19:30:33</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3268/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3268/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=meereen.essos.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:meereen.essos.local
+Not valid before: 2026-10-02T19:30:33
+Not valid after:  2027-10-02T19:30:33</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3269/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3269/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=meereen.essos.local
+Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:&lt;unsupported&gt;, DNS:meereen.essos.local
+Not valid before: 2026-10-02T19:30:33
+Not valid after:  2027-10-02T19:30:33</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=meereen.essos.local
+Not valid before: 2026-10-01T19:05:48
+Not valid after:  2027-04-02T19:05:48</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">3389/tcp</span> · rdp-ntlm-info</summary>
+    <pre>Target_Name: ESSOS
+  NetBIOS_Domain_Name: ESSOS
+  NetBIOS_Computer_Name: MEEREEN
+  DNS_Domain_Name: essos.local
+  DNS_Computer_Name: meereen.essos.local
+  DNS_Tree_Name: essos.local
+  Product_Version: 10.0.14393
+  System_Time: 2026-10-09T12:59:51+00:00</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5985/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-cert</summary>
+    <pre>Subject: commonName=VAGRANT
+Subject Alternative Name: DNS:VAGRANT, DNS:vagrant
+Not valid before: 2026-10-01T11:48:07
+Not valid after:  2029-09-30T11:48:07</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · ssl-date</summary>
+    <pre>2026-10-09T12:59:59+00:00; +1s from scanner time.</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">5986/tcp</span> · tls-alpn</summary>
+    <pre>h2
+  http/1.1</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-title</summary>
+    <pre>Not Found</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">47001/tcp</span> · http-server-header</summary>
+    <pre>Microsoft-HTTPAPI/2.0</pre>
+  </details>
+</section>
+
+<section class="detail" id="host-192.168.56.100" data-detail="192.168.56.100">
+  <div class="dhead">
+    <button class="back" data-back>← All hosts</button>
+    <h2>192.168.56.100</h2>
+  </div>
+  <p class="dmeta">Not shown: 65535 closed · MAC: 08:00:27:35:6A:A5</p>
+  <h3>Ports</h3>
+  <p class="ok">No open or ambiguous ports in the scanned range.</p>
+  <h3>Review items (0)</h3>
+  <p class="ok">Nothing flagged for review on this host.</p>
+  <h3>Script output</h3>
+  <p class="ok">No NSE script output for this host.</p>
+</section>
+
+
+<section id="followup">
+  <h2>Suggested follow-up scans</h2>
+  <p class="lede">Derived from the gaps this scan actually left, not a generic
+  checklist.</p>
+  <pre class="cmds">sudo nmap -sU --top-ports 50 -sV -oX udp.xml 192.168.56.10 192.168.56.11 192.168.56.12 192.168.56.22 192.168.56.23 192.168.56.100
+nmap -sV --version-all -p 445,464,5986 -oX unknown-services.xml 192.168.56.10 192.168.56.11 192.168.56.12 192.168.56.22 192.168.56.23 192.168.56.100</pre>
+</section>
+
+<footer>
+  <p><b>What this report is.</b> nmap establishes that something answered a
+  probe. It does not establish exploitability, and a service banner is not a
+  patch level — distributions backport fixes without changing it, and some
+  services misreport deliberately. Every item here is something to
+  <i>check</i>; none of them is a confirmed vulnerability. Priority is review
+  urgency, not severity.</p>
+  <p>Generated by <code>nmap-review</code>. Scan only systems you are
+  authorised to test.</p>
+</footer>
+
+<script>
+(function () {
+  var details = Array.prototype.slice.call(document.querySelectorAll('[data-detail]'));
+  var landing = ['summary', 'trust', 'hosts', 'down', 'followup'].map(function (id) {
+    return document.getElementById(id);
+  }).filter(Boolean);
+
+  // Hiding is done here rather than in CSS so that with JavaScript disabled the
+  // page is still a complete, readable report with every host expanded.
+  function show(addr) {
+    var found = false;
+    details.forEach(function (d) {
+      var match = d.getAttribute('data-detail') === addr;
+      d.hidden = !match;
+      found = found || match;
+    });
+    landing.forEach(function (s) { s.hidden = found; });
+    if (found) { window.scrollTo(0, 0); }
+  }
+
+  document.querySelectorAll('.card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      var addr = card.getAttribute('data-host');
+      if (history.pushState) { history.pushState({ host: addr }, '', '#host-' + addr); }
+      show(addr);
+    });
+  });
+
+  document.querySelectorAll('[data-back]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (history.pushState) { history.pushState({}, '', '#hosts'); }
+      show(null);
+    });
+  });
+
+  window.addEventListener('popstate', function () { fromHash(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { show(null); }
+  });
+
+  function fromHash() {
+    var m = /^#host-(.+)$/.exec(window.location.hash);
+    show(m ? decodeURIComponent(m[1]) : null);
+  }
+  fromHash();
+})();
+</script>
+</body></html>

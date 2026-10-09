@@ -27,9 +27,9 @@ class TestParse(unittest.TestCase):
         self.assertEqual([("syn", "tcp", "1-1024,1025-1030")], self.scan.scan_types)
 
     def test_host_states(self):
-        self.assertEqual(3, len(self.scan.hosts))
-        self.assertEqual(2, len(self.scan.up_hosts()))
-        self.assertEqual(["192.168.56.10", "192.168.56.11"],
+        self.assertEqual(4, len(self.scan.hosts))
+        self.assertEqual(3, len(self.scan.up_hosts()))
+        self.assertEqual(["192.168.56.10", "192.168.56.11", "192.168.56.14"],
                          [h.address for h in self.scan.up_hosts()])
 
     def test_ipv4_preferred_over_mac_as_address(self):
@@ -79,7 +79,7 @@ class TestParse(unittest.TestCase):
         cut = text[:text.index("<runstats>")] + "<port protocol=\"tcp\" portid=\"99"
         scan = parse_string(cut, source="cut.xml")
         self.assertEqual("truncated", scan.exit_status)
-        self.assertEqual(3, len(scan.hosts))          # the hosts before the cut survive
+        self.assertEqual(4, len(scan.hosts))          # the hosts before the cut survive
 
     def test_garbage_raises(self):
         with self.assertRaises(ParseError):

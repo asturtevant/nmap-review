@@ -38,6 +38,7 @@ import html as _html
 import re
 from collections import Counter
 
+from .profile import detect_roles
 from .report import _followups, counts
 
 BADGE = {"high": "High", "medium": "Medium", "low": "Low", "info": "Info"}
@@ -220,6 +221,10 @@ def _grid(hosts, by_host, tags=None):
         pills = "".join(f'<span class="pill p-{p}">{c[p]}</span>'
                         for p in ("high", "medium", "low", "info") if c[p]) \
             or '<span class="pill p-none">clear</span>'
+        roles = detect_roles(h)
+        role_html = "".join(
+            f'<span class="role r-{r.confidence}">{esc(r.name)}</span>'
+            for r in roles[:2])
         svc = ", ".join(sorted({p.service for p in h.open_ports() if p.service})) or "—"
         os_line = (f"{esc(h.os_matches[0][0])} ({h.os_matches[0][1]}%)"
                    if h.os_matches else "OS not determined")
@@ -231,6 +236,7 @@ def _grid(hosts, by_host, tags=None):
         <span class="addr">{esc(h.address)}{f' <span class="tag chg">{esc(tag)}</span>' if tag else ''}</span>
         <span class="pills">{pills}</span>
       </div>
+      {f'<div class="roles">{role_html}</div>' if role_html else ''}
       {f'<div class="names">{names}</div>' if names else ''}
       <div class="cardstat">
         <span><b>{len(h.open_ports())}</b> open</span>
@@ -296,6 +302,7 @@ def _detail(host, items):
 
     extra = ", ".join(f"{cnt} {esc(st)}" for st, cnt, _ in host.extraports if cnt)
     meta = []
+    roles = detect_roles(host)
     if host.hostnames:
         meta.append("Names: " + ", ".join(esc(n) for n, t in host.hostnames))
     if host.os_matches:
@@ -327,6 +334,7 @@ def _detail(host, items):
     <h2>{esc(host.address)}</h2>
   </div>
   {f'<p class="dmeta">{" · ".join(meta)}</p>' if meta else ''}
+  {_roles_block(roles)}
   <h3>Ports</h3>
   {table}
   <h3>Review items ({len(items)})</h3>
@@ -334,6 +342,25 @@ def _detail(host, items):
   <h3>Script output</h3>
   {scripts_html}
 </section>"""
+
+
+def _roles_block(roles):
+    """What the host appears to be, with the signals that say so.
+
+    The signals are printed, not just the conclusion: role inference is
+    guesswork in a confident voice, and the reader has to be able to overrule
+    it without re-reading the port table.
+    """
+    if not roles:
+        return ""
+    cards = "".join(f"""
+    <li><span class="role r-{r.confidence}">{esc(r.confidence)}</span>
+      <b>{esc(r.name)}</b>
+      <span class="sig">{esc(" · ".join(r.signals))}</span></li>"""
+                    for r in roles)
+    return f"""
+  <h3>Appears to be</h3>
+  <ul class="rolelist">{cards}</ul>"""
 
 
 def _script_block(where, script):
@@ -480,6 +507,17 @@ code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.92em}
 .svc{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .drill{font-size:12px;font-weight:600;color:var(--low)}
 .pills{display:flex;gap:4px}
+.roles{display:flex;gap:5px;flex-wrap:wrap}
+.role{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;
+  background:var(--info-bg);color:var(--info);white-space:nowrap}
+.role.r-strong{background:var(--high-bg);color:var(--high)}
+.role.r-likely{background:var(--medium-bg);color:var(--medium)}
+.role.r-possible{background:var(--low-bg);color:var(--low)}
+.rolelist{list-style:none;padding:0;margin:0 0 4px}
+.rolelist li{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  padding:9px 13px;margin:0 0 7px;font-size:13.5px;display:flex;gap:9px;
+  align-items:baseline;flex-wrap:wrap}
+.rolelist .sig{color:var(--mute);font-size:12px;flex:1 1 100%}
 .pill{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;
   background:var(--info-bg);color:var(--info)}
 .pill.p-high{background:var(--high-bg);color:var(--high)}

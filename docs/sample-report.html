@@ -71,6 +71,17 @@ code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.92em}
 .svc{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .drill{font-size:12px;font-weight:600;color:var(--low)}
 .pills{display:flex;gap:4px}
+.roles{display:flex;gap:5px;flex-wrap:wrap}
+.role{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;
+  background:var(--info-bg);color:var(--info);white-space:nowrap}
+.role.r-strong{background:var(--high-bg);color:var(--high)}
+.role.r-likely{background:var(--medium-bg);color:var(--medium)}
+.role.r-possible{background:var(--low-bg);color:var(--low)}
+.rolelist{list-style:none;padding:0;margin:0 0 4px}
+.rolelist li{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  padding:9px 13px;margin:0 0 7px;font-size:13.5px;display:flex;gap:9px;
+  align-items:baseline;flex-wrap:wrap}
+.rolelist .sig{color:var(--mute);font-size:12px;flex:1 1 100%}
 .pill{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;
   background:var(--info-bg);color:var(--info)}
 .pill.p-high{background:var(--high-bg);color:var(--high)}
@@ -155,7 +166,7 @@ footer p{max-width:80ch}
       <h1>nmap review</h1>
       <p class="sub">What answered a probe, and what still needs a human.</p>
     </div>
-    <div class="chips"><span class="chip p-high">9 high</span><span class="chip p-medium">14 medium</span><span class="chip p-low">2 low</span><span class="chip p-info">1 info</span></div>
+    <div class="chips"><span class="chip p-high">11 high</span><span class="chip p-medium">22 medium</span><span class="chip p-low">2 low</span><span class="chip p-info">1 info</span></div>
   </div>
   <dl class="meta"><div class="metarow"><dt>Command</dt><dd><code>nmap -sS -sV -sC -oX sample.xml 192.168.56.10 192.168.56.11</code></dd></div>
 <div class="metarow"><dt>nmap</dt><dd>7.94</dd></div>
@@ -166,7 +177,7 @@ footer p{max-width:80ch}
 
 <section id="summary">
   <h2>Summary</h2>
-  <div class="tiles"><div class="tile"><span class="tnum">3</span><span class="tlab">Hosts scanned</span><span class="tsub">2 up · 1 not responding</span></div><div class="tile"><span class="tnum">9</span><span class="tlab">Open ports</span><span class="tsub">across 2 hosts</span></div><div class="tile"><span class="tnum">6</span><span class="tlab">Distinct services</span><span class="tsub">2×http, 1×ftp, 1×ssh</span></div><div class="tile"><span class="tnum">2</span><span class="tlab">Hosts needing attention</span><span class="tsub">carry a high-priority review item</span></div><div class="tile"><span class="tnum">4</span><span class="tlab">Ports to identify</span><span class="tsub">2 unidentified · 2 guessed from port number</span></div><div class="tile"><span class="tnum">1</span><span class="tlab">Unresolved states</span><span class="tsub">open|filtered — silence, two causes</span></div></div>
+  <div class="tiles"><div class="tile"><span class="tnum">4</span><span class="tlab">Hosts scanned</span><span class="tsub">3 up · 1 not responding</span></div><div class="tile"><span class="tnum">19</span><span class="tlab">Open ports</span><span class="tsub">across 3 hosts</span></div><div class="tile"><span class="tnum">14</span><span class="tlab">Distinct services</span><span class="tsub">2×http, 2×microsoft-ds, 2×ldap</span></div><div class="tile"><span class="tnum">3</span><span class="tlab">Hosts needing attention</span><span class="tsub">carry a high-priority review item</span></div><div class="tile"><span class="tnum">5</span><span class="tlab">Ports to identify</span><span class="tsub">2 unidentified · 3 guessed from port number</span></div><div class="tile"><span class="tnum">1</span><span class="tlab">Unresolved states</span><span class="tsub">open|filtered — silence, two causes</span></div></div>
 </section>
 
 <section id="trust">
@@ -202,12 +213,30 @@ footer p{max-width:80ch}
   <p class="lede">Accent colour is the host's highest review priority. Select a
   host to drill into its ports, findings and script output.</p>
   <div class="grid">
+    <button class="card w-high" data-host="192.168.56.14"
+            aria-controls="host-192.168.56.14">
+      <div class="cardtop">
+        <span class="addr">192.168.56.14</span>
+        <span class="pills"><span class="pill p-high">1</span><span class="pill p-medium">7</span></span>
+      </div>
+      <div class="roles"><span class="role r-strong">Active Directory domain controller</span><span class="role r-likely">DNS server</span></div>
+      <div class="names">dc01.lab.internal</div>
+      <div class="cardstat">
+        <span><b>10</b> open</span>
+        <span><b>0</b> filtered</span>
+        <span><b>0</b> unresolved</span>
+      </div>
+      <div class="os">Microsoft Windows Server 2019 (96%)</div>
+      <div class="svc" title="domain, kerberos-sec, kpasswd5, ldap, ldapssl, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn">domain, kerberos-sec, kpasswd5, ldap, ldapssl, microsoft-ds, ms-wbt-server, msrpc, netbios-ssn</div>
+      <span class="drill">View host →</span>
+    </button>
     <button class="card w-high" data-host="192.168.56.10"
             aria-controls="host-192.168.56.10">
       <div class="cardtop">
         <span class="addr">192.168.56.10</span>
-        <span class="pills"><span class="pill p-high">7</span><span class="pill p-medium">10</span><span class="pill p-low">1</span><span class="pill p-info">1</span></span>
+        <span class="pills"><span class="pill p-high">8</span><span class="pill p-medium">11</span><span class="pill p-low">1</span><span class="pill p-info">1</span></span>
       </div>
+      <div class="roles"><span class="role r-strong">Database server</span><span class="role r-likely">Container host</span></div>
       <div class="names">build01.lab.internal, jenkins.lab.internal</div>
       <div class="cardstat">
         <span><b>8</b> open</span>
@@ -224,6 +253,7 @@ footer p{max-width:80ch}
         <span class="addr">192.168.56.11</span>
         <span class="pills"><span class="pill p-high">1</span><span class="pill p-medium">3</span><span class="pill p-low">1</span></span>
       </div>
+      <div class="roles"><span class="role r-possible">File server</span></div>
       <div class="names">win-dc01.lab.internal</div>
       <div class="cardstat">
         <span><b>1</b> open</span>
@@ -236,12 +266,236 @@ footer p{max-width:80ch}
     </button></div>
 </section>
 
+<section class="detail" id="host-192.168.56.14" data-detail="192.168.56.14">
+  <div class="dhead">
+    <button class="back" data-back>← All hosts</button>
+    <h2>192.168.56.14</h2>
+  </div>
+  <p class="dmeta">Names: dc01.lab.internal · OS: Microsoft Windows Server 2019 (96%) · Not shown: 985 closed</p>
+  
+  <h3>Appears to be</h3>
+  <ul class="rolelist">
+    <li><span class="role r-strong">strong</span>
+      <b>Active Directory domain controller</b>
+      <span class="sig">LDAP banner names Active Directory · Kerberos (88) and LDAP (389) both open · Global catalog (3268/3269) open · Kerberos password change (464) open · a script reports a Windows domain · LDAPS (636) open · DNS (53) served by a Windows host · SMB (445) and RPC endpoint mapper (135) open · hostname suggests a domain controller (weak on its own)</span></li>
+    <li><span class="role r-likely">likely</span>
+      <b>DNS server</b>
+      <span class="sig">DNS (53) answering</span></li>
+    <li><span class="role r-possible">possible</span>
+      <b>File server</b>
+      <span class="sig">SMB (445) open</span></li></ul>
+  <h3>Ports</h3>
+  
+    <table class="ports">
+      <thead><tr><th>Port</th><th>State</th><th>Service</th><th>Version</th>
+      <th>Identified by</th><th>Review</th></tr></thead>
+      <tbody>
+      <tr class="">
+        <td class="mono pcell">53/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>domain</td>
+        <td class="mono ver">Simple DNS Plus</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">88/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kerberos-sec</td>
+        <td class="mono ver">Microsoft Windows Kerberos server time: 2026-10-06 09:01:12Z</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">135/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>msrpc</td>
+        <td class="mono ver">Microsoft Windows RPC</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RPC endpoint mapper reachable on 135/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">139/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>netbios-ssn</td>
+        <td class="mono ver">Microsoft Windows netbios-ssn</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Legacy NetBIOS session service reachable on 139/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: lab.internal0., Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Directory exposed without TLS on 389/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">445/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>microsoft-ds</td>
+        <td class="mono ver">Windows Server 2019 Standard</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="SMB reachable on 445/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">464/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>kpasswd5</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag guess">port table</span></td>
+        <td></td>
+      </tr>
+      <tr class="">
+        <td class="mono pcell">636/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldapssl</td>
+        <td class="mono ver">—</td>
+        <td><span class="tag probed">probe</span></td>
+        <td></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3268/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ldap</td>
+        <td class="mono ver">Microsoft Windows Active Directory LDAP Domain: lab.internal0., Site: Default-First-Site-Name</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="Directory exposed without TLS on 3268/tcp">1 Medium</span></td>
+      </tr>
+      <tr class="has-f w-medium">
+        <td class="mono pcell">3389/tcp</td>
+        <td><span class="state s-open">open</span></td>
+        <td>ms-wbt-server</td>
+        <td class="mono ver">Microsoft Terminal Services</td>
+        <td><span class="tag probed">probe</span></td>
+        <td><span class="pill p-medium" title="RDP reachable on 3389/tcp">1 Medium</span></td>
+      </tr></tbody>
+    </table>
+  <h3>Review items (8)</h3>
+  
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>Looks like an Active Directory domain controller (strong match)</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal)</span>
+      <span class="frule mono">SRF-HOST-ROLE</span>
+    </div>
+    <p>Matched on: LDAP banner names Active Directory; Kerberos (88) and LDAP (389) both open; Global catalog (3268/3269) open; Kerberos password change (464) open; a script reports a Windows domain; LDAPS (636) open; DNS (53) served by a Windows host; SMB (445) and RPC endpoint mapper (135) open; hostname suggests a domain controller (weak on its own). A domain controller holds the credentials for everything that trusts it, so every other item on this host is read differently: SMB signing is a relay path to the directory rather than a hygiene note, an exposed administration service is a route to Domain Admin, and an unpatched SMB stack is the whole estate. This is inferred from the scan, not confirmed -- read the signals above and decide whether they describe this host.</p>
+    <p class="next"><b>Next step:</b> Confirm the domain and the DC role (<code>--script smb-os-discovery,ldap-rootdse</code>), then review this host against DC hardening specifically: SMB signing required, LDAP channel binding and signing, no anonymous bind, print spooler, and the patch level of the SMB and Netlogon stacks.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>1 service name(s) are port-table guesses</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal)</span>
+      <span class="frule mono">COV-GUESSED-SERVICES</span>
+    </div>
+    <p>These ports are labelled from nmap-services, not from a probe: 464/tcp -&gt; kpasswd5. Treat the name as a hypothesis.</p>
+    <p class="next"><b>Next step:</b> Confirm with <code>-sV</code> on exactly these ports.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RPC endpoint mapper reachable on 135/tcp</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal) 135/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>msrpc</code> -- Microsoft Windows RPC. RPC endpoint mapper reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 135/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Legacy NetBIOS session service reachable on 139/tcp</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal) 139/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>netbios-ssn</code> -- Microsoft Windows netbios-ssn. Legacy NetBIOS session service reachable.</p>
+    <p class="next"><b>Next step:</b> Confirm the service and its authentication on 139/tcp, then decide whether this exposure is intended.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 3268/tcp</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal) 3268/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: lab.internal0., Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 3268</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>RDP reachable on 3389/tcp</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal) 3389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ms-wbt-server</code> -- Microsoft Terminal Services. RDP reachable; review NLA and lockout policy.</p>
+    <p class="next"><b>Next step:</b> <code>--script rdp-ntlm-info,rdp-enum-encryption -p 3389</code>; confirm NLA is required.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Directory exposed without TLS on 389/tcp</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal) 389/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>ldap</code> -- Microsoft Windows Active Directory LDAP Domain: lab.internal0., Site: Default-First-Site-Name. Directory exposed without TLS; check for anonymous bind.</p>
+    <p class="next"><b>Next step:</b> <code>--script ldap-rootdse -p 389</code>; test for anonymous bind.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>SMB reachable on 445/tcp</h4>
+      <span class="ftarget mono">192.168.56.14 (dc01.lab.internal) 445/tcp</span>
+      <span class="frule mono">SRF-SENSITIVE-SERVICE</span>
+    </div>
+    <p><code>microsoft-ds</code> -- Windows Server 2019 Standard. SMB reachable; review signing, SMBv1, and share ACLs.</p>
+    <p class="next"><b>Next step:</b> <code>--script smb2-security-mode,smb-os-discovery,smb-enum-shares -p 445</code>.</p>
+  </article>
+  <h3>Script output</h3>
+  
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb-os-discovery</summary>
+    <pre>OS: Windows Server 2019 Standard
+  Computer name: dc01
+  Domain name: lab.internal
+  Forest name: lab.internal
+  FQDN: dc01.lab.internal</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">host</span> · smb2-security-mode</summary>
+    <pre>3.1.1: 
+    Message signing enabled and required</pre>
+  </details>
+  <details class="nse">
+    <summary><span class="mono">389/tcp</span> · ldap-rootdse</summary>
+    <pre>LDAP Results
+  &lt;ROOT&gt;
+      domainFunctionality: 7
+      dnsHostName: dc01.lab.internal
+      defaultNamingContext: DC=lab,DC=internal</pre>
+  </details>
+</section>
+
 <section class="detail" id="host-192.168.56.10" data-detail="192.168.56.10">
   <div class="dhead">
     <button class="back" data-back>← All hosts</button>
     <h2>192.168.56.10</h2>
   </div>
   <p class="dmeta">Names: build01.lab.internal, jenkins.lab.internal · OS: Linux 3.2 - 4.9 (92%); Linux 2.6.32 (88%) · 1 hop(s) from the scanner · Not shown: 986 closed · MAC: 08:00:27:AA:BB:CC</p>
+  
+  <h3>Appears to be</h3>
+  <ul class="rolelist">
+    <li><span class="role r-strong">strong</span>
+      <b>Database server</b>
+      <span class="sig">database listener open · a second database listener open · database software in a banner</span></li>
+    <li><span class="role r-likely">likely</span>
+      <b>Container host</b>
+      <span class="sig">Docker API over plain HTTP (2375)</span></li>
+    <li><span class="role r-likely">likely</span>
+      <b>Web server</b>
+      <span class="sig">HTTP/HTTPS open · web server software in a banner</span></li></ul>
   <h3>Ports</h3>
   
     <table class="ports">
@@ -313,8 +567,18 @@ footer p{max-width:80ch}
         <td><span class="pill p-high" title="Unidentified service on 9999/tcp">1 High</span></td>
       </tr></tbody>
     </table>
-  <h3>Review items (19)</h3>
+  <h3>Review items (21)</h3>
   
+  <article class="finding p-high" data-priority="high">
+    <div class="fhead">
+      <span class="badge p-high">High</span>
+      <h4>Looks like a Container host (likely match)</h4>
+      <span class="ftarget mono">192.168.56.10 (build01.lab.internal)</span>
+      <span class="frule mono">SRF-HOST-ROLE</span>
+    </div>
+    <p>Matched on: Docker API over plain HTTP (2375). An exposed Docker API is root on the host, with no authentication step in the default configuration. This is inferred from the scan, not confirmed -- read the signals above and decide whether they describe this host.</p>
+    <p class="next"><b>Next step:</b> Confirm whether the daemon requires client certificates; an unauthenticated answer on 2375 is immediate compromise.</p>
+  </article>
   <article class="finding p-high" data-priority="high">
     <div class="fhead">
       <span class="badge p-high">High</span>
@@ -414,6 +678,16 @@ footer p{max-width:80ch}
     </div>
     <p>No TLS was detected on this listener. Anything authenticated over it is recoverable on-path.</p>
     <p class="next"><b>Next step:</b> Check whether it redirects to HTTPS, and whether the redirect is enforced (HSTS) rather than advisory.</p>
+  </article>
+  <article class="finding p-medium" data-priority="medium">
+    <div class="fhead">
+      <span class="badge p-medium">Medium</span>
+      <h4>Looks like a Database server (strong match)</h4>
+      <span class="ftarget mono">192.168.56.10 (build01.lab.internal)</span>
+      <span class="frule mono">SRF-HOST-ROLE</span>
+    </div>
+    <p>Matched on: database listener open; a second database listener open; database software in a banner. The host&#x27;s value is its data rather than its services, so the exposure question is who can reach the listener at all. This is inferred from the scan, not confirmed -- read the signals above and decide whether they describe this host.</p>
+    <p class="next"><b>Next step:</b> Confirm authentication and network restriction on each database port; a listener reachable from a user network is the finding regardless of its version.</p>
   </article>
   <article class="finding p-medium" data-priority="medium">
     <div class="fhead">
@@ -539,6 +813,12 @@ footer p{max-width:80ch}
     <h2>192.168.56.11</h2>
   </div>
   <p class="dmeta">Names: win-dc01.lab.internal · OS: Microsoft Windows Server 2008 R2 (85%) · Not shown: 988 filtered</p>
+  
+  <h3>Appears to be</h3>
+  <ul class="rolelist">
+    <li><span class="role r-possible">possible</span>
+      <b>File server</b>
+      <span class="sig">SMB (445) open</span></li></ul>
   <h3>Ports</h3>
   
     <table class="ports">
@@ -645,9 +925,9 @@ footer p{max-width:80ch}
   <h2>Suggested follow-up scans</h2>
   <p class="lede">Derived from the gaps this scan actually left, not a generic
   checklist.</p>
-  <pre class="cmds">nmap -p- -sV -T3 -oX full-tcp.xml 192.168.56.10 192.168.56.11   # the 64,535 ports this scan skipped
-sudo nmap -sU --top-ports 50 -sV -oX udp.xml 192.168.56.10 192.168.56.11
-nmap -sV --version-all -p 2375,3306,9999 -oX unknown-services.xml 192.168.56.10 192.168.56.11</pre>
+  <pre class="cmds">nmap -p- -sV -T3 -oX full-tcp.xml 192.168.56.10 192.168.56.11 192.168.56.14   # the 64,535 ports this scan skipped
+sudo nmap -sU --top-ports 50 -sV -oX udp.xml 192.168.56.10 192.168.56.11 192.168.56.14
+nmap -sV --version-all -p 464,2375,3306,9999 -oX unknown-services.xml 192.168.56.10 192.168.56.11 192.168.56.14</pre>
 </section>
 
 <footer>

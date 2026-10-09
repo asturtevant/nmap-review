@@ -14,6 +14,7 @@ ticket tracker) without anyone parsing the prose.
 import json
 from dataclasses import asdict
 
+from .profile import detect_roles
 from .rules import PRIORITY_ORDER
 
 MARK = {"high": "!!", "medium": "!", "low": "~", "info": "i"}
@@ -105,6 +106,10 @@ def markdown(scan, findings):
         w(f"### {host.label}")
         w("")
         meta = []
+        roles = detect_roles(host)
+        if roles:
+            meta.append("Appears to be: "
+                        + ", ".join(f"{r.name} ({r.confidence})" for r in roles))
         if host.os_matches:
             n, a = host.os_matches[0]
             meta.append(f"OS guess: {n} ({a}%)")
@@ -245,6 +250,12 @@ def text(scan, findings, width=78):
     w("-" * width)
     for host in up:
         w(f"{host.label}  ({host.state})")
+        roles = detect_roles(host)
+        if roles:
+            for line in _wrap("appears to be: "
+                              + ", ".join(f"{r.name} ({r.confidence})" for r in roles),
+                              width - 4):
+                w(f"    {line}")
         shown = [p for p in host.ports if p.state != "closed"]
         if not shown:
             w("    no open or ambiguous ports")
@@ -307,6 +318,9 @@ def to_json(scan, findings, indent=2):
                 "address": h.address,
                 "hostnames": [n for n, _ in h.hostnames],
                 "state": h.state,
+                "roles": [{"name": r.name, "confidence": r.confidence,
+                           "score": r.score, "signals": r.signals}
+                          for r in detect_roles(h)],
                 "os": [{"name": n, "accuracy": a} for n, a in h.os_matches],
                 "ports": [
                     {
