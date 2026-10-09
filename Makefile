@@ -19,6 +19,10 @@ test:
 sample:
 	./nmap-review report tests/fixtures/sample.xml -f md   -o docs/sample-report.md
 	./nmap-review report tests/fixtures/sample.xml -f html -o docs/sample-report.html
+	./nmap-review diff tests/fixtures/baseline.xml tests/fixtures/sample.xml \
+		-f md   -o docs/sample-diff.md
+	./nmap-review diff tests/fixtures/baseline.xml tests/fixtures/sample.xml \
+		-f html -o docs/sample-diff.html
 
 # The sample report is committed so a change in the rules shows up as a diff in
 # the review wording, not just in a test name. If this target fails, the rules
@@ -28,9 +32,12 @@ sample:
 # wording change.
 check: test
 	@./nmap-review report tests/fixtures/sample.xml -f md > /tmp/nmap-review-sample.md
+	@./nmap-review diff tests/fixtures/baseline.xml tests/fixtures/sample.xml -f md \
+		> /tmp/nmap-review-sample-diff.md
 	@diff -u docs/sample-report.md /tmp/nmap-review-sample.md \
+		&& diff -u docs/sample-diff.md /tmp/nmap-review-sample-diff.md \
 		&& echo "  sample reports are current" \
-		|| { echo "  docs/sample-report.md is stale -- run 'make sample'"; exit 1; }
+		|| { echo "  docs/ samples are stale -- run 'make sample'"; exit 1; }
 
 clean:
 	rm -rf __pycache__ */__pycache__ .pytest_cache

@@ -202,12 +202,14 @@ def _trust(scan_wide):
 </section>"""
 
 
-def _grid(hosts, by_host):
+def _grid(hosts, by_host, tags=None):
     if not hosts:
         return ('<section id="hosts"><h2>Hosts</h2>'
                 '<p class="ok">No responsive hosts in this scan.</p></section>')
+    tags = tags or {}
     cards = []
     for h in hosts:
+        tag = tags.get(h.address, "")
         items = by_host.get(h.label, [])
         worst = _worst(items) or "none"
         c = Counter(f.priority for f in items)
@@ -222,7 +224,7 @@ def _grid(hosts, by_host):
     <button class="card w-{worst}" data-host="{esc(h.address)}"
             aria-controls="host-{esc(h.address)}">
       <div class="cardtop">
-        <span class="addr">{esc(h.address)}</span>
+        <span class="addr">{esc(h.address)}{f' <span class="tag chg">{esc(tag)}</span>' if tag else ''}</span>
         <span class="pills">{pills}</span>
       </div>
       {f'<div class="names">{names}</div>' if names else ''}
@@ -508,6 +510,7 @@ table.ports{width:100%;border-collapse:collapse;font-size:13.5px;
 .tag.probed{background:var(--low-bg);color:var(--low)}
 .tag.guess{background:var(--medium-bg);color:var(--medium)}
 .tag.none{background:var(--high-bg);color:var(--high)}
+.tag.chg{background:var(--medium-bg);color:var(--medium);margin-left:6px}
 /* findings */
 .finding{background:var(--panel);border:1px solid var(--line);
   border-left:4px solid var(--info);border-radius:10px;padding:13px 16px;margin:0 0 10px}
@@ -526,6 +529,10 @@ table.ports{width:100%;border-collapse:collapse;font-size:13.5px;
 .finding p{margin:9px 0 0;font-size:13.5px;max-width:78ch}
 .next{color:var(--mute)}
 .next b{color:var(--ink)}
+.delta{margin:8px 0 0;font-size:13px}
+.delta .was{color:var(--mute);text-decoration:line-through}
+.delta .now{color:var(--ink);font-weight:600}
+.delta .arrow{color:var(--mute);padding:0 4px}
 /* nse + commands */
 .nse{background:var(--panel);border:1px solid var(--line);border-radius:9px;
   padding:9px 13px;margin:0 0 8px}
@@ -595,3 +602,142 @@ _SCRIPT = """
 })();
 </script>
 </body></html>"""
+
+
+# --------------------------------------------------------------------------
+# Diff page
+#
+# Same page furniture, different question. The changes come first and the full
+# current-scan grid stays underneath, because the first thing anyone asks after
+# "what changed" is "what does that host look like now" -- and making them open
+# a second report to answer it is how the diff stops being used.
+# --------------------------------------------------------------------------
+
+_CHANGE_SECTIONS = [
+    ("host-appeared", "New hosts"),
+    ("port-opened", "Ports opened"),
+    ("service-changed", "Services changed"),
+    ("finding-new", "New review items"),
+    ("version-changed", "Versions changed"),
+    ("port-closed", "Ports closed or no longer open"),
+    ("host-gone", "Hosts no longer responding"),
+    ("finding-cleared", "Review items no longer reported"),
+]
+
+
+def html_diff(d, findings):
+    """Render a Diff plus the current scan's hosts, as one self-contained page."""
+    scan = d.new
+    scan_wide, by_host = _assign(scan, findings)
+    hosts = sorted(scan.up_hosts(),
+                   key=lambda h: (RANK.get(_worst(by_host.get(h.label, [])), 9),
+                                  -len(h.open_ports()), h.address))
+
+    tags = {}
+    for ch in d.changes:
+        addr = ch.host.split(" ")[0]
+        if ch.kind == "host-appeared":
+            tags[addr] = "new"
+        elif addr not in tags and ch.kind in ("port-opened", "service-changed"):
+            tags[addr] = "changed"
+
+    parts = [_HEAD, _diff_header(d), _diff_summary(d), _diff_sections(d),
+             _grid(hosts, by_host, tags)]
+    parts += [_detail(h, by_host.get(h.label, [])) for h in hosts]
+    parts += [_down(scan), _footer(), _SCRIPT]
+    return "\n".join(parts)
+
+
+def _diff_header(d):
+    rows = "\n".join(
+        f'<div class="metarow"><dt>{k}</dt><dd>{v}</dd></div>' for k, v in [
+            ("Baseline", f"<code>{esc(d.old.source)}</code>"),
+            ("Current", f"<code>{esc(d.new.source)}</code>"),
+            ("Baseline cmd", f"<code>{esc(d.old.args)}</code>" if d.old.args else "—"),
+            ("Current cmd", f"<code>{esc(d.new.args)}</code>" if d.new.args else "—"),
+        ])
+    c = d.counts()
+    chips = "".join(f'<span class="chip p-{p}">{c[p]} {BADGE[p].lower()}</span>'
+                    for p in ("high", "medium", "low", "info") if c[p]) \
+        or '<span class="chip p-info">no changes</span>'
+    return f"""
+<header>
+  <div class="hwrap">
+    <div>
+      <h1>nmap review — changes</h1>
+      <p class="sub">What moved since the baseline scan.</p>
+    </div>
+    <div class="chips">{chips}</div>
+  </div>
+  <dl class="meta">{rows}</dl>
+</header>"""
+
+
+def _diff_summary(d):
+    old_open = sum(len(h.open_ports()) for h in d.old.up_hosts())
+    new_open = sum(len(h.open_ports()) for h in d.new.up_hosts())
+    tiles = [
+        ("Hosts up", f"{len(d.old.up_hosts())} → {len(d.new.up_hosts())}",
+         f"{len(d.by_kind('host-appeared'))} new · {len(d.by_kind('host-gone'))} gone"),
+        ("Open ports", f"{old_open} → {new_open}",
+         f"{len(d.by_kind('port-opened'))} opened · {len(d.by_kind('port-closed'))} closed"),
+        ("Services changed", len(d.by_kind("service-changed")),
+         "a different service is answering"),
+        ("Versions changed", len(d.by_kind("version-changed")), "usually patching"),
+        ("New review items", len(d.new_findings), "not present in the baseline"),
+        ("Cleared", len(d.cleared_findings), "verify the scan covered them"),
+    ]
+    cells = "".join(
+        f'<div class="tile"><span class="tnum">{v}</span>'
+        f'<span class="tlab">{k}</span><span class="tsub">{s}</span></div>'
+        for k, v, s in tiles)
+    return f"""
+<section id="summary">
+  <h2>Summary of changes</h2>
+  <div class="tiles">{cells}</div>
+</section>"""
+
+
+def _diff_sections(d):
+    if d.unchanged:
+        return """
+<section id="trust">
+  <h2>No changes</h2>
+  <p class="lede">Every host, port state, service identity and review item
+  matches the baseline. Before reading that as stability, check both scans used
+  the same flags — a narrower scan produces no changes either.</p>
+</section>"""
+    blocks = []
+    for kind, label in _CHANGE_SECTIONS:
+        items = d.by_kind(kind)
+        if not items:
+            continue
+        cards = "".join(_change_card(ch) for ch in items)
+        blocks.append(f'<h3>{label} ({len(items)})</h3>{cards}')
+    return f"""
+<section id="trust">
+  <h2>Changes</h2>
+  <p class="lede">New exposure first. A cleared item is not proof of a fix — a
+  narrower scan clears findings just as effectively as a remediation does.</p>
+  {"".join(blocks)}
+</section>"""
+
+
+def _change_card(ch):
+    delta = ""
+    if ch.before or ch.after:
+        delta = (f'<p class="delta"><span class="mono was">{esc(ch.before) or "—"}</span>'
+                 f' <span class="arrow">→</span> '
+                 f'<span class="mono now">{esc(ch.after) or "—"}</span></p>')
+    where = esc(ch.host) + (f" · {esc(ch.port)}" if ch.port else "")
+    return f"""
+  <article class="finding p-{ch.priority}">
+    <div class="fhead">
+      <span class="badge p-{ch.priority}">{BADGE[ch.priority]}</span>
+      <h4>{esc(ch.title)}</h4>
+      <span class="frule mono">{esc(ch.kind)}</span>
+    </div>
+    <p class="ftarget mono">{where}</p>
+    {delta}
+    <p>{rich(ch.detail)}</p>
+  </article>"""

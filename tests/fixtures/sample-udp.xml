@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun scanner="nmap" args="nmap -sU -sV --top-ports 50 -oX sample-udp.xml 192.168.56.10 192.168.56.11" start="1760000300" startstr="Tue Oct  6 09:10:00 2026" version="7.94">
+<scaninfo type="udp" protocol="udp" numservices="50" services="53,67,123,161,500"/>
+<host>
+<status state="up" reason="arp-response"/>
+<address addr="192.168.56.10" addrtype="ipv4"/>
+<hostnames><hostname name="build01.lab.internal" type="PTR"/></hostnames>
+<ports>
+<extraports state="open|filtered" count="47"><extrareasons reason="no-responses" count="47"/></extraports>
+<port protocol="udp" portid="161"><state state="open" reason="udp-response"/><service name="snmp" product="net-snmp" version="5.7.3" method="probed" conf="10"/>
+<script id="snmp-info" output="enterprise: net-snmp&#xa;  engineIDFormat: unknown&#xa;  snmpEngineTime: 12d"/>
+</port>
+<port protocol="udp" portid="123"><state state="open" reason="udp-response"/><service name="ntp" product="NTP" version="4.2.8" method="probed" conf="10"/></port>
+</ports>
+</host>
+<runstats><finished time="1760000500" timestr="Tue Oct  6 09:13:20 2026" exit="success"/></runstats>
+</nmaprun>

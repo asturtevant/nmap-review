@@ -14,6 +14,12 @@ the port tables, and names the follow-up check for each one.
 # an HTML report: summary, host grid, click-through per host
 ./nmap-review report scan.xml -f html -o report.html
 
+# several files -- a TCP sweep, a UDP pass, an overnight -p- -- as one report
+./nmap-review report tcp.xml udp.xml full.xml -f html -o report.html
+
+# what changed since the baseline
+./nmap-review diff baseline.xml latest.xml -f html -o changes.html
+
 # review XML you already have
 ./nmap-review report scan.xml
 
@@ -26,9 +32,12 @@ the port tables, and names the follow-up check for each one.
 ./nmap-review report scan.xml -f json | jq '.findings[] | select(.priority=="high")'
 ```
 
-Example output, both generated from [`tests/fixtures/sample.xml`](tests/fixtures/sample.xml):
+Example output, generated from [`tests/fixtures/sample.xml`](tests/fixtures/sample.xml):
 [**HTML report**](docs/sample-report.html) (open it in a browser) ·
-[**markdown report**](docs/sample-report.md).
+[**markdown report**](docs/sample-report.md) ·
+[**HTML diff**](docs/sample-diff.html) ·
+[**markdown diff**](docs/sample-diff.md) against
+[`baseline.xml`](tests/fixtures/baseline.xml).
 
 > ⚠️ Scan only systems you own or have written authorisation to test. This tool
 > adds no probes of its own, but it does make it easier to run nmap — port
@@ -60,6 +69,76 @@ Two details worth knowing: with JavaScript disabled the page is still a
 complete report with every host expanded (hiding is applied by script, not by
 CSS), and it prints sensibly — the cards drop out and every host detail
 expands. Light and dark both supported.
+
+## Several scans, one report
+
+An engagement does not produce one XML. It produces a quick TCP sweep, a UDP
+pass, an overnight `-p-`, often one file per subnet. Pass them all to `report`
+and they are merged by host before the rules run:
+
+```bash
+./nmap-review report tcp.xml udp.xml overnight.xml -f html -o report.html
+```
+
+This is not just convenience. Reviewed separately, the TCP report says *"no UDP
+scan"* while the UDP results sit in the next file — the caveat is wrong about
+the work that was actually done. Merging makes the coverage rules describe the
+scan **set**.
+
+Conflicts resolve toward evidence: a `-sV` run that identified `6379/tcp redis
+5.0.7` beats a fast sweep that called the same port `open, no service`, because
+the second one never asked. State wins first (`open` > `open|filtered` >
+`filtered` > `closed`), then probed-over-guessed, then having a banner. NSE
+output is unioned rather than replaced — two scans with different `--script`
+sets each hold evidence the other lacks. Overlapping `extraports` counts take
+the largest single-scan figure instead of summing, so two scans of the same
+1,000 ports don't report 2,000 filtered.
+
+One honest caveat, stated in the report header: merged coverage is the union.
+A set containing one `-p-` scan won't warn about default port ranges even if
+that `-p-` only covered one host of twelve. Where that distinction matters,
+review the scans separately.
+
+## What changed since last time
+
+```bash
+./nmap-review diff baseline.xml latest.xml -f html -o changes.html
+
+# either side may be several files
+./nmap-review diff old-tcp.xml old-udp.xml -- new-tcp.xml new-udp.xml
+```
+
+Nobody scans the same estate twice to read the same report twice. The diff
+reports hosts appearing and disappearing, ports opening and closing, services
+changing identity, versions moving, and review items arriving or clearing —
+with the full current-scan host grid still underneath, because the next
+question after *"what changed"* is always *"what does that host look like
+now"*.
+
+A service **name** change and a version change are reported separately and
+ranked differently: a version bump is usually patching, while a different
+service answering on the same port usually means something else is listening.
+
+Two cautions are built into the wording rather than left to the reader. A host
+that "disappeared" may just not have answered this time. And a cleared finding
+is **not** proof of a fix — a narrower scan clears findings exactly as
+effectively as a remediation does, so the diff says so on every cleared item.
+
+Finding identity is `(rule, target)`, deliberately not the prose: `COV-FILTERED`
+going from "989 ports filtered" to "991 ports filtered" is the same standing
+finding, and reporting it as new every week is how a diff becomes noise.
+
+### This is the form that belongs in CI
+
+`--fail-on high` against a single scan fires forever — an estate's standing
+exposures don't disappear between Tuesday and Wednesday, so the check gets
+muted within a fortnight. The diff gate considers only what is *new*:
+
+```bash
+nmap-review diff baseline.xml latest.xml -f json -o changes.json --fail-on high
+```
+
+That is a check a team can leave switched on for a year.
 
 ## What it reports
 
@@ -169,14 +248,15 @@ nmap-review report scan.xml -f json -o review.json --fail-on high
 ```
 
 `--only coverage|surface` and `--min-priority` narrow what's reported and what
-the gate considers.
+the gate considers. For `diff`, `--fail-on` applies to changes only, never to
+findings that were already true at the baseline.
 
 ## Development
 
 ```bash
-make test     # 59 tests, offline, no nmap required
+make test     # 92 tests, offline, no nmap required
 make check    # tests, then confirm the committed samples match the current rules
-make sample   # regenerate the committed sample reports (markdown + HTML)
+make sample   # regenerate the committed samples (report + diff, md + HTML)
 ```
 
 The test suite never runs nmap. The parser and the rules are exercised entirely

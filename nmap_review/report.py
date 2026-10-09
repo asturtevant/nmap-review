@@ -345,3 +345,121 @@ def _followups(scan, findings):
         ports = ",".join(sorted(set(unknown), key=int)[:40])
         out.append(f"nmap -sV --version-all -p {ports} -oX unknown-services.xml {targets}")
     return out
+
+
+# --------------------------------------------------------------------------
+# Diff renderers
+#
+# Same ordering argument as the single-scan report: what is new comes before
+# what cleared, and the caveat that a cleared finding may only mean a narrower
+# scan is attached to the cleared items themselves rather than left in a
+# footnote nobody reads.
+# --------------------------------------------------------------------------
+
+_KIND_LABEL = {
+    "host-appeared": "New hosts",
+    "port-opened": "Ports opened",
+    "service-changed": "Services changed",
+    "version-changed": "Versions changed",
+    "finding-new": "New review items",
+    "port-closed": "Ports closed or no longer open",
+    "host-gone": "Hosts no longer responding",
+    "finding-cleared": "Review items no longer reported",
+}
+
+
+def markdown_diff(d, _unused=None):
+    L = []
+    w = L.append
+    c = d.counts()
+    w("# nmap review — changes")
+    w("")
+    w(f"- **Baseline:** `{d.old.source}`")
+    w(f"- **Current:** `{d.new.source}`")
+    w(f"- **Hosts:** {len(d.old.up_hosts())} up → {len(d.new.up_hosts())} up")
+    w(f"- **Open ports:** {sum(len(h.open_ports()) for h in d.old.up_hosts())} → "
+      f"{sum(len(h.open_ports()) for h in d.new.up_hosts())}")
+    w(f"- **Changes:** {len(d.changes)} "
+      f"({c['high']} high · {c['medium']} medium · {c['low']} low · {c['info']} info)")
+    w("")
+    if d.unchanged:
+        w("**No changes.** Every host, port state, service identity and review "
+          "item matches the baseline. Check the two scans used the same flags "
+          "before reading this as stability — a narrower scan also produces no "
+          "changes.")
+        w("")
+        return "\n".join(L) + "\n"
+
+    for kind in _KIND_LABEL:
+        items = d.by_kind(kind)
+        if not items:
+            continue
+        w(f"## {_KIND_LABEL[kind]} ({len(items)})")
+        w("")
+        for ch in items:
+            w(f"#### {BADGE[ch.priority]} — {ch.title}")
+            w("")
+            w(f"`{ch.host}`" + (f" · `{ch.port}`" if ch.port else ""))
+            w("")
+            if ch.before or ch.after:
+                w(f"`{ch.before or '—'}` → `{ch.after or '—'}`")
+                w("")
+            w(ch.detail)
+            w("")
+    w("---")
+    w("")
+    w("*A cleared finding is not proof of a fix: a narrower scan clears findings "
+      "too. Compare the two commands above before claiming remediation.*")
+    return "\n".join(L) + "\n"
+
+
+def text_diff(d, _unused=None, width=78):
+    L = []
+    w = L.append
+    c = d.counts()
+    w("=" * width)
+    w("nmap review -- changes".center(width))
+    w("=" * width)
+    w(f"baseline : {d.old.source}")
+    w(f"current  : {d.new.source}")
+    w(f"hosts    : {len(d.old.up_hosts())} up -> {len(d.new.up_hosts())} up")
+    w(f"changes  : {len(d.changes)} "
+      f"({c['high']} high, {c['medium']} medium, {c['low']} low, {c['info']} info)")
+    w("")
+    if d.unchanged:
+        w("No changes against the baseline. Confirm both scans used the same")
+        w("flags: a narrower scan also produces no changes.")
+        return "\n".join(L) + "\n"
+    for kind in _KIND_LABEL:
+        items = d.by_kind(kind)
+        if not items:
+            continue
+        w("-" * width)
+        w(f"{_KIND_LABEL[kind].upper()} ({len(items)})")
+        w("-" * width)
+        for ch in items:
+            where = f"{ch.host}" + (f" {ch.port}" if ch.port else "")
+            w(f"[{MARK[ch.priority]}] {ch.title}  [{where}]")
+            if ch.before or ch.after:
+                w(f"      {ch.before or '-'} -> {ch.after or '-'}")
+            for line in _wrap(ch.detail, width - 6):
+                w(f"      {line}")
+            w("")
+    return "\n".join(L) + "\n"
+
+
+def to_json_diff(d, _unused=None, indent=2):
+    payload = {
+        "baseline": {"source": d.old.source, "args": d.old.args,
+                     "hosts_up": len(d.old.up_hosts()),
+                     "open_ports": sum(len(h.open_ports()) for h in d.old.up_hosts())},
+        "current": {"source": d.new.source, "args": d.new.args,
+                    "hosts_up": len(d.new.up_hosts()),
+                    "open_ports": sum(len(h.open_ports()) for h in d.new.up_hosts())},
+        "counts": d.counts(),
+        "changed": not d.unchanged,
+        "changes": [asdict(c) for c in d.changes],
+        "new_findings": [asdict(f) for f in d.new_findings],
+        "cleared_findings": [asdict(f) for f in d.cleared_findings],
+    }
+    return json.dumps(payload, indent=indent) + "\n"

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun scanner="nmap" args="nmap -sS -sV -sC -oX baseline.xml 192.168.56.10 192.168.56.11 192.168.56.13" start="1759000000" startstr="Thu Sep 25 09:00:00 2026" version="7.94">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1024"/>
+<host>
+<status state="up" reason="arp-response"/>
+<address addr="192.168.56.10" addrtype="ipv4"/>
+<hostnames><hostname name="build01.lab.internal" type="PTR"/></hostnames>
+<ports>
+<extraports state="closed" count="991"><extrareasons reason="resets" count="991"/></extraports>
+<port protocol="tcp" portid="21"><state state="open" reason="syn-ack"/><service name="ftp" product="vsftpd" version="2.3.4" method="probed" conf="10"/>
+<script id="ftp-anon" output="Anonymous FTP login allowed (FTP code 230)"/>
+</port>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack"/><service name="ssh" product="OpenSSH" version="7.2" extrainfo="protocol 2.0" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack"/><service name="http" product="Apache httpd" version="2.2.15" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="9999"><state state="open" reason="syn-ack"/><service name="http" product="nginx" version="1.14.2" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="3306"><state state="filtered" reason="no-response"/><service name="mysql" method="table" conf="3"/></port>
+</ports>
+<os><osmatch name="Linux 3.2 - 4.9" accuracy="92"/></os>
+</host>
+<host>
+<status state="up" reason="syn-ack"/>
+<address addr="192.168.56.11" addrtype="ipv4"/>
+<hostnames><hostname name="win-dc01.lab.internal" type="PTR"/></hostnames>
+<ports>
+<extraports state="filtered" count="988"><extrareasons reason="no-responses" count="988"/></extraports>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack"/><service name="microsoft-ds" product="Microsoft Windows Server 2008 R2 microsoft-ds" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="3389"><state state="open|filtered" reason="no-response"/><service name="ms-wbt-server" method="table" conf="3"/></port>
+<port protocol="tcp" portid="5985"><state state="filtered" reason="no-response"/><service name="winrm" method="table" conf="3"/></port>
+</ports>
+<os><osmatch name="Microsoft Windows Server 2008 R2" accuracy="85"/></os>
+</host>
+<host>
+<status state="up" reason="syn-ack"/>
+<address addr="192.168.56.13" addrtype="ipv4"/>
+<hostnames><hostname name="old-jump.lab.internal" type="PTR"/></hostnames>
+<ports>
+<extraports state="closed" count="999"><extrareasons reason="resets" count="999"/></extraports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack"/><service name="ssh" product="OpenSSH" version="8.9" extrainfo="protocol 2.0" method="probed" conf="10"/></port>
+</ports>
+</host>
+<runstats><finished time="1759000200" timestr="Thu Sep 25 09:03:20 2026" exit="success"/></runstats>
+</nmaprun>

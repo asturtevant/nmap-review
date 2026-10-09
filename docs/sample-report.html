@@ -105,6 +105,7 @@ table.ports{width:100%;border-collapse:collapse;font-size:13.5px;
 .tag.probed{background:var(--low-bg);color:var(--low)}
 .tag.guess{background:var(--medium-bg);color:var(--medium)}
 .tag.none{background:var(--high-bg);color:var(--high)}
+.tag.chg{background:var(--medium-bg);color:var(--medium);margin-left:6px}
 /* findings */
 .finding{background:var(--panel);border:1px solid var(--line);
   border-left:4px solid var(--info);border-radius:10px;padding:13px 16px;margin:0 0 10px}
@@ -123,6 +124,10 @@ table.ports{width:100%;border-collapse:collapse;font-size:13.5px;
 .finding p{margin:9px 0 0;font-size:13.5px;max-width:78ch}
 .next{color:var(--mute)}
 .next b{color:var(--ink)}
+.delta{margin:8px 0 0;font-size:13px}
+.delta .was{color:var(--mute);text-decoration:line-through}
+.delta .now{color:var(--ink);font-weight:600}
+.delta .arrow{color:var(--mute);padding:0 4px}
 /* nse + commands */
 .nse{background:var(--panel);border:1px solid var(--line);border-radius:9px;
   padding:9px 13px;margin:0 0 8px}
