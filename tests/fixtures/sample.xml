@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sS -sV -sC -oX sample.xml 192.168.56.10 192.168.56.11" start="1760000000" startstr="Tue Oct  6 09:00:00 2026" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1024,1025-1030"/>
+<host starttime="1760000001" endtime="1760000120">
+<status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.56.10" addrtype="ipv4"/>
+<address addr="08:00:27:AA:BB:CC" addrtype="mac" vendor="Oracle VirtualBox virtual NIC"/>
+<hostnames>
+<hostname name="build01.lab.internal" type="PTR"/>
+<hostname name="jenkins.lab.internal" type="user"/>
+</hostnames>
+<ports>
+<extraports state="closed" count="986">
+<extrareasons reason="resets" count="986"/>
+</extraports>
+<port protocol="tcp" portid="21"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ftp" product="vsftpd" version="2.3.4" method="probed" conf="10"/>
+<script id="ftp-anon" output="Anonymous FTP login allowed (FTP code 230)"/>
+</port>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ssh" product="OpenSSH" version="7.4" extrainfo="protocol 2.0" method="probed" conf="10"/>
+<script id="ssh-auth-methods" output="Supported authentication methods: &#xa;  publickey&#xa;  password"/>
+</port>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="Apache httpd" version="2.2.15" method="probed" conf="10"/>
+<script id="http-title" output="Jenkins [Dashboard]"/>
+<script id="http-methods" output="Supported Methods: GET HEAD POST OPTIONS TRACE&#xa;  Potentially risky methods: TRACE"/>
+</port>
+<port protocol="tcp" portid="2375"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="unknown" method="table" conf="3"/></port>
+<port protocol="tcp" portid="6379"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="redis" product="Redis key-value store" version="5.0.7" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="8081"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="nginx" version="1.14.2" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="9999"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="tcpwrapped" method="probed" conf="8"/></port>
+<port protocol="tcp" portid="3306"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="mysql" method="table" conf="3"/></port>
+</ports>
+<os>
+<osmatch name="Linux 3.2 - 4.9" accuracy="92" line="62101"/>
+<osmatch name="Linux 2.6.32" accuracy="88" line="55111"/>
+</os>
+<distance value="1"/>
+<hostscript>
+<script id="smb2-security-mode" output="&#xa;  3.1.1: &#xa;    Message signing enabled but not required"/>
+</hostscript>
+</host>
+<host starttime="1760000001" endtime="1760000200">
+<status state="up" reason="syn-ack" reason_ttl="128"/>
+<address addr="192.168.56.11" addrtype="ipv4"/>
+<hostnames><hostname name="win-dc01.lab.internal" type="PTR"/></hostnames>
+<ports>
+<extraports state="filtered" count="988">
+<extrareasons reason="no-responses" count="988"/>
+</extraports>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack" reason_ttl="128"/><service name="microsoft-ds" product="Microsoft Windows Server 2008 R2 microsoft-ds" method="probed" conf="10"/>
+<script id="smb-vuln-ms17-010" output="&#xa;  VULNERABLE:&#xa;  Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)&#xa;    State: VULNERABLE&#xa;    IDs:  CVE:CVE-2017-0143"/>
+</port>
+<port protocol="tcp" portid="3389"><state state="open|filtered" reason="no-response" reason_ttl="0"/><service name="ms-wbt-server" method="table" conf="3"/></port>
+<port protocol="tcp" portid="5985"><state state="filtered" reason="no-response" reason_ttl="0"/><service name="winrm" method="table" conf="3"/></port>
+</ports>
+<os><osmatch name="Microsoft Windows Server 2008 R2" accuracy="85"/></os>
+</host>
+<host>
+<status state="down" reason="no-response"/>
+<address addr="192.168.56.12" addrtype="ipv4"/>
+</host>
+<runstats><finished time="1760000210" timestr="Tue Oct  6 09:03:30 2026" elapsed="210.00" exit="success"/><hosts up="2" down="1" total="3"/></runstats>
+</nmaprun>

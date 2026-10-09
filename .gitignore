@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Scan output. Never commit a scan of someone else's network by accident.
+*.xml
+!tests/fixtures/*.xml
+*.nmap
+*.gnmap
+reports/

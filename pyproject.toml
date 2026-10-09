@@ -1,0 +1,18 @@
+[project]
+name = "nmap-review"
+version = "0.1.0"
+description = "A reporting wrapper around nmap that flags what still needs human review"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+dependencies = []          # stdlib only, deliberately: see README
+
+[project.scripts]
+nmap-review = "nmap_review.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["nmap_review"]
