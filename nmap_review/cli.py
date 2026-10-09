@@ -22,6 +22,7 @@ review items" without parsing the report.
 """
 
 import argparse
+import os
 import sys
 
 from . import __version__
@@ -46,9 +47,10 @@ def build_parser():
 
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("-f", "--format", choices=("md", "text", "json", "html"),
-                        default="md",
-                        help="output format (default: md). html is a single "
-                             "self-contained file with host drill-down")
+                        help="output format. Inferred from --out's extension "
+                             "when that is .html/.htm/.json/.md/.txt, else md. "
+                             "html is a single self-contained file with host "
+                             "drill-down")
     common.add_argument("-o", "--out", metavar="PATH",
                         help="write the report here instead of stdout")
     common.add_argument("--fail-on", choices=("high", "medium", "low", "info", "never"),
@@ -87,11 +89,28 @@ def build_parser():
 _SIDE_SEP = "\x00side"
 
 
+# Writing markdown into a file called report.html is a mistake with no upside,
+# and `-o report.html` states the intent plainly enough to act on. An explicit
+# -f always wins; an unrecognised extension falls back to markdown rather than
+# guessing.
+_BY_EXT = {".html": "html", ".htm": "html", ".json": "json",
+           ".md": "md", ".markdown": "md", ".txt": "text"}
+
+
+def resolve_format(fmt, out):
+    if fmt:
+        return fmt
+    if out:
+        return _BY_EXT.get(os.path.splitext(out)[1].lower(), "md")
+    return "md"
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "diff":
         argv = [_SIDE_SEP if a == "--" else a for a in argv]
     args = build_parser().parse_args(argv)
+    args.format = resolve_format(args.format, args.out)
 
     try:
         if args.command == "report":

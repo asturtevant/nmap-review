@@ -64,3 +64,41 @@ class TestCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFormatInference(unittest.TestCase):
+    """`-o report.html` should not quietly write markdown into it."""
+
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _write(self, name, extra=()):
+        path = os.path.join(self.dir, name)
+        code, _, _ = run(["report", SAMPLE, "-o", path] + list(extra))
+        self.assertEqual(0, code)
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+
+    def test_html_extension_gives_html(self):
+        self.assertTrue(self._write("r.html").startswith("<!doctype html>"))
+
+    def test_json_extension_gives_json(self):
+        json.loads(self._write("r.json"))
+
+    def test_markdown_remains_the_default(self):
+        self.assertTrue(self._write("r.md").startswith("# nmap review"))
+
+    def test_unknown_extension_falls_back_to_markdown(self):
+        self.assertTrue(self._write("r.out").startswith("# nmap review"))
+
+    def test_explicit_format_wins_over_the_extension(self):
+        self.assertTrue(self._write("r.html", ["-f", "md"]).startswith("# nmap review"))
+
+    def test_stdout_still_defaults_to_markdown(self):
+        _, out, _ = run(["report", SAMPLE])
+        self.assertTrue(out.startswith("# nmap review"))

@@ -15,7 +15,8 @@ the port tables, and names the follow-up check for each one.
 ./nmap-review report scan.xml -f html -o report.html
 
 # several files -- a TCP sweep, a UDP pass, an overnight -p- -- as one report
-./nmap-review report tcp.xml udp.xml full.xml -f html -o report.html
+# (format is inferred from the -o extension; -f overrides)
+./nmap-review report tcp.xml udp.xml full.xml -o report.html
 
 # what changed since the baseline
 ./nmap-review diff baseline.xml latest.xml -f html -o changes.html
@@ -254,7 +255,7 @@ findings that were already true at the baseline.
 ## Development
 
 ```bash
-make test     # 92 tests, offline, no nmap required
+make test     # 98 tests, offline, no nmap required
 make check    # tests, then confirm the committed samples match the current rules
 make sample   # regenerate the committed samples (report + diff, md + HTML)
 ```
