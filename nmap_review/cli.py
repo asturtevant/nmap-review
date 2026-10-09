@@ -33,7 +33,7 @@ from .parse import ParseError, parse_file, parse_string
 from .report import (markdown, markdown_diff, text, text_diff, to_json,
                      to_json_diff)
 from .rules import PRIORITY_ORDER, review
-from .scope import apply_scope, unmatched_patterns
+from .scope import apply_scope, split_patterns, unmatched_patterns
 from .runner import NmapFailed, NmapNotFound, run
 
 
@@ -66,12 +66,15 @@ def build_parser():
                         default=[],
                         help="drop a host from the report: an address, a CIDR "
                              "block, or a glob matched against the address and "
-                             "hostnames. Repeatable. Excluded hosts are named "
-                             "in the report header, never silently dropped")
+                             "hostnames. Repeatable, and comma-separated lists "
+                             "work as they do in nmap's own --exclude. Excluded "
+                             "hosts are named in the report header, never "
+                             "silently dropped")
     common.add_argument("--only-host", metavar="PATTERN", action="append",
                         default=[],
                         help="keep only hosts matching this (same syntax, "
-                             "repeatable); applied before --exclude-host")
+                             "repeatable and comma-separated); applied before "
+                             "--exclude-host")
 
     rep = sub.add_parser("report", parents=[common],
                          help="review existing nmap XML ('-' for stdin); "
@@ -189,7 +192,7 @@ def _scoped(scan, args):
     exclude pattern means the host the operator meant to drop is still in the
     report -- worth a line on stderr rather than silence.
     """
-    patterns = list(args.only_host) + list(args.exclude_host)
+    patterns = split_patterns(args.only_host) + split_patterns(args.exclude_host)
     if not patterns:
         return scan
     scoped = apply_scope(scan, only=args.only_host, exclude=args.exclude_host)

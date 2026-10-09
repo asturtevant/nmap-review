@@ -112,7 +112,13 @@ neighbour inside the same /24, a host the client has put out of scope.
 ```
 
 A pattern is an exact address, a CIDR block, or a shell glob tried against the
-address and every hostname; both flags repeat. `--only-host` is an allow-list
+address and every hostname. Both flags repeat, and both take comma-separated
+lists the way nmap's own `--exclude` does:
+
+```bash
+./nmap-review report scan.xml --exclude-host 10.0.0.5,10.0.0.6,'*.corp.internal'
+```
+ `--only-host` is an allow-list
 applied first, then `--exclude-host` removes from what is left — so the two
 compose as "this subnet, except that box". A pattern that matches nothing warns
 on stderr, because a typo in an exclude pattern means the host you meant to
@@ -282,7 +288,7 @@ findings that were already true at the baseline.
 ## Development
 
 ```bash
-make test     # 119 tests, offline, no nmap required
+make test     # 124 tests, offline, no nmap required
 make check    # tests, then confirm the committed samples match the current rules
 make sample   # regenerate the committed samples (report + diff, md + HTML)
 ```

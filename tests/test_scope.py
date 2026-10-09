@@ -172,3 +172,38 @@ class TestScopeCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCommaSeparated(unittest.TestCase):
+    """nmap's own --exclude takes a comma list; diverging from it is a trap."""
+
+    def test_split_patterns(self):
+        from nmap_review.scope import split_patterns
+        self.assertEqual(["a", "b", "c"], split_patterns(["a,b", "c"]))
+        self.assertEqual(["a", "b"], split_patterns(["a, b"]))        # spaces
+        self.assertEqual(["a"], split_patterns(["a,"]))               # trailing comma
+        self.assertEqual([], split_patterns([]))
+
+    def test_comma_list_excludes_both(self):
+        scan = apply_scope(sample(), exclude=["192.168.56.11,192.168.56.12"])
+        self.assertEqual(["192.168.56.10"], [h.address for h in scan.hosts])
+        self.assertEqual(2, len(scan.excluded))
+
+    def test_comma_and_repeated_flags_combine(self):
+        code, out, _ = run(["report", SAMPLE,
+                            "--exclude-host", "192.168.56.11,192.168.56.12",
+                            "-f", "json"])
+        self.assertEqual(0, code)
+        self.assertEqual(["192.168.56.10"],
+                         [h["address"] for h in json.loads(out)["hosts"]])
+
+    def test_trailing_comma_does_not_produce_a_bogus_warning(self):
+        code, _, err = run(["report", SAMPLE, "--exclude-host", "192.168.56.11,",
+                            "-f", "json"])
+        self.assertEqual(0, code)
+        self.assertNotIn("no host matched", err)
+
+    def test_one_bad_entry_in_a_list_still_warns(self):
+        _, _, err = run(["report", SAMPLE, "--exclude-host", "192.168.56.11,10.9.9.9",
+                         "-f", "json"])
+        self.assertIn("10.9.9.9", err)

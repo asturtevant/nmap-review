@@ -25,6 +25,11 @@ tried against the address and every hostname:
     --exclude-host '*.corp.internal'
     --only-host '192.168.56.*'
 
+Patterns may also be comma-separated, which is how nmap's own `--exclude`
+behaves -- a wrapper that silently differs from the tool it wraps is a trap:
+
+    --exclude-host 10.0.0.5,10.0.0.6,'*.corp.internal'
+
 `--only-host` is applied first (an allow-list), then `--exclude-host` removes
 from what is left -- so the two compose the way a reader expects: "this subnet,
 except that box".
@@ -32,6 +37,22 @@ except that box".
 
 import fnmatch
 import ipaddress
+
+
+def split_patterns(values):
+    """Flatten repeated flags and comma-separated lists into one pattern list.
+
+    Commas are stripped of surrounding whitespace so `a, b` works, and empty
+    fragments from a trailing comma are dropped rather than becoming a pattern
+    that matches nothing and warns about itself.
+    """
+    out = []
+    for value in values or []:
+        for part in str(value).split(","):
+            part = part.strip()
+            if part:
+                out.append(part)
+    return out
 
 
 def _as_network(pattern):
@@ -65,8 +86,8 @@ def apply_scope(scan, only=(), exclude=()):
     and nobody else holds a reference. Each excluded host is recorded with the
     pattern that removed it, so the report can say *why* as well as *what*.
     """
-    only = [p for p in (only or []) if p]
-    exclude = [p for p in (exclude or []) if p]
+    only = split_patterns(only)
+    exclude = split_patterns(exclude)
     if not only and not exclude:
         return scan
 
