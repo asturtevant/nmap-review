@@ -1,7 +1,7 @@
 # nmap-review
 #
 #   make test      the whole suite, offline, no nmap needed
-#   make sample     regenerate docs/sample-report.md from the committed fixture
+#   make sample    regenerate the committed sample reports from the fixture
 #   make check     test + confirm the committed sample matches the current rules
 
 PY := python3
@@ -10,22 +10,26 @@ PY := python3
 
 help:
 	@echo "make test    run the test suite (offline, no nmap required)"
-	@echo "make sample  regenerate docs/sample-report.md from tests/fixtures/sample.xml"
+	@echo "make sample  regenerate the committed sample reports (md + html)"
 	@echo "make check   test, then verify the committed sample is current"
 
 test:
 	$(PY) -m unittest discover -s tests -t . -v
 
 sample:
-	./nmap-review report tests/fixtures/sample.xml -f md -o docs/sample-report.md
+	./nmap-review report tests/fixtures/sample.xml -f md   -o docs/sample-report.md
+	./nmap-review report tests/fixtures/sample.xml -f html -o docs/sample-report.html
 
 # The sample report is committed so a change in the rules shows up as a diff in
 # the review wording, not just in a test name. If this target fails, the rules
 # changed and the sample needs regenerating -- which is the point.
+# The HTML sample is compared inside the test suite (tests/test_html.py); the
+# markdown one is compared here because a diff is the readable way to see a
+# wording change.
 check: test
 	@./nmap-review report tests/fixtures/sample.xml -f md > /tmp/nmap-review-sample.md
 	@diff -u docs/sample-report.md /tmp/nmap-review-sample.md \
-		&& echo "  sample report is current" \
+		&& echo "  sample reports are current" \
 		|| { echo "  docs/sample-report.md is stale -- run 'make sample'"; exit 1; }
 
 clean:

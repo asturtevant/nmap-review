@@ -17,6 +17,7 @@ import argparse
 import sys
 
 from . import __version__
+from .html import html_report
 from .parse import ParseError, parse_file, parse_string
 from .report import markdown, text, to_json
 from .rules import PRIORITY_ORDER, review
@@ -33,8 +34,10 @@ def build_parser():
     sub = p.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("-f", "--format", choices=("md", "text", "json"), default="md",
-                        help="output format (default: md)")
+    common.add_argument("-f", "--format", choices=("md", "text", "json", "html"),
+                        default="md",
+                        help="output format (default: md). html is a single "
+                             "self-contained file with host drill-down")
     common.add_argument("-o", "--out", metavar="PATH",
                         help="write the report here instead of stdout")
     common.add_argument("--fail-on", choices=("high", "medium", "low", "info", "never"),
@@ -93,7 +96,8 @@ def main(argv=None):
     floor = PRIORITY_ORDER[args.min_priority]
     findings = [f for f in findings if PRIORITY_ORDER[f.priority] <= floor]
 
-    renderer = {"md": markdown, "text": text, "json": to_json}[args.format]
+    renderer = {"md": markdown, "text": text, "json": to_json,
+                "html": html_report}[args.format]
     out = renderer(scan, findings)
 
     if args.out:

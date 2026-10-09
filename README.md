@@ -11,6 +11,9 @@ between running a scan and writing it up — so this tool puts them first, above
 the port tables, and names the follow-up check for each one.
 
 ```bash
+# an HTML report: summary, host grid, click-through per host
+./nmap-review report scan.xml -f html -o report.html
+
 # review XML you already have
 ./nmap-review report scan.xml
 
@@ -23,8 +26,9 @@ the port tables, and names the follow-up check for each one.
 ./nmap-review report scan.xml -f json | jq '.findings[] | select(.priority=="high")'
 ```
 
-[**See a full example report**](docs/sample-report.md) generated from
-[`tests/fixtures/sample.xml`](tests/fixtures/sample.xml).
+Example output, both generated from [`tests/fixtures/sample.xml`](tests/fixtures/sample.xml):
+[**HTML report**](docs/sample-report.html) (open it in a browser) ·
+[**markdown report**](docs/sample-report.md).
 
 > ⚠️ Scan only systems you own or have written authorisation to test. This tool
 > adds no probes of its own, but it does make it easier to run nmap — port
@@ -32,6 +36,30 @@ the port tables, and names the follow-up check for each one.
 > jurisdictions.
 
 ---
+
+## The HTML report
+
+`-f html` writes one self-contained file — no CDN, no fonts, no network, so it
+renders on a jump box or an air-gapped laptop and survives being emailed around.
+
+**Summary band.** Hosts scanned / up / not responding, total open ports,
+distinct services, how many hosts carry a high-priority item, how many ports
+still need identifying, how many states nmap could not resolve.
+
+**Host grid.** One card per host, accent-coloured by its highest review
+priority, with its open/filtered/unresolved counts, OS guess and service list.
+The hosts that need attention are visible without reading anything.
+
+**Drill-down.** Click a host for its own page: a port table with a column for
+*how* each service was identified, each row marked with the review items
+attached to it, then those findings in full, then the NSE output verbatim.
+`Esc` or "← All hosts" goes back, and each host has its own URL fragment
+(`#host-10.0.0.5`) so a specific host can be linked to directly.
+
+Two details worth knowing: with JavaScript disabled the page is still a
+complete report with every host expanded (hiding is applied by script, not by
+CSS), and it prints sensibly — the cards drop out and every host detail
+expands. Light and dark both supported.
 
 ## What it reports
 
@@ -119,6 +147,14 @@ unclosed document; that partial data is worth reviewing, so it is repaired, read
 and flagged `COV-TRUNCATED` at high priority. Silently ignoring the truncation
 would turn "we never got there" into "nothing was found".
 
+**The HTML report escapes everything from the target.** Service banners,
+hostnames and NSE output are strings the scanned host chose. A host can put
+`<script>` in its own HTTP server header, and a reporter that interpolates that
+straight into a page runs the target's code on the analyst's machine. Every
+interpolation goes through one escape helper, and a test feeds the renderer a
+hostile banner and asserts the page still contains exactly one `<script>` — its
+own.
+
 **Stdlib only.** No dependencies, Python 3.8+, so it runs on whatever box the
 scan ran on — which is usually not a box you want to `pip install` onto.
 
@@ -138,19 +174,20 @@ the gate considers.
 ## Development
 
 ```bash
-make test     # 48 tests, offline, no nmap required
-make check    # tests, then confirm docs/sample-report.md matches the current rules
-make sample   # regenerate the committed sample report
+make test     # 59 tests, offline, no nmap required
+make check    # tests, then confirm the committed samples match the current rules
+make sample   # regenerate the committed sample reports (markdown + HTML)
 ```
 
 The test suite never runs nmap. The parser and the rules are exercised entirely
-against committed XML, which also means the committed sample report doubles as a
-golden file: change a rule's wording and `make check` shows it as a diff in the
+against committed XML, which also means the committed sample reports double as
+golden files: change a rule's wording and `make check` shows it as a diff in the
 report, not just as a test name.
 
-Two of the tests exist to protect the tool's *altitude* rather than its logic —
-`test_version_finding_does_not_assert_vulnerability` and
-`test_unprobed_sensitive_service_is_downgraded`. Those are the properties most
+Three of the tests exist to protect the tool's *altitude* rather than its logic —
+`test_version_finding_does_not_assert_vulnerability`,
+`test_unprobed_sensitive_service_is_downgraded` and
+`test_target_controlled_text_is_escaped`. Those are the properties most
 likely to erode as rules get added, and they are the reason anyone would trust
 the output.
 
