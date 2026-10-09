@@ -100,6 +100,33 @@ A set containing one `-p-` scan won't warn about default port ranges even if
 that `-p-` only covered one host of twelve. Where that distinction matters,
 review the scans separately.
 
+## Dropping hosts from a report
+
+Scans pick up things the report should not carry: the scanning box itself, a
+neighbour inside the same /24, a host the client has put out of scope.
+
+```bash
+./nmap-review report scan.xml --exclude-host 10.0.0.5
+./nmap-review report scan.xml --exclude-host '*.corp.internal' -o report.html
+./nmap-review report scan.xml --only-host 192.168.56.0/24 --exclude-host 192.168.56.1
+```
+
+A pattern is an exact address, a CIDR block, or a shell glob tried against the
+address and every hostname; both flags repeat. `--only-host` is an allow-list
+applied first, then `--exclude-host` removes from what is left — so the two
+compose as "this subnet, except that box". A pattern that matches nothing warns
+on stderr, because a typo in an exclude pattern means the host you meant to
+drop is still in the report.
+
+**Excluded hosts are never silently deleted.** They move into a recorded list,
+and every format names them and the pattern that removed them in its header.
+A host that is simply absent is indistinguishable from one that was never
+scanned, and only one of those is a statement about the target — which is the
+confusion the rest of this tool exists to prevent.
+
+The filters apply to `scan` and to both sides of a `diff` too, so excluding a
+decommissioned host stops it being reported as "no longer responding".
+
 ## What changed since last time
 
 ```bash
@@ -255,7 +282,7 @@ findings that were already true at the baseline.
 ## Development
 
 ```bash
-make test     # 98 tests, offline, no nmap required
+make test     # 119 tests, offline, no nmap required
 make check    # tests, then confirm the committed samples match the current rules
 make sample   # regenerate the committed samples (report + diff, md + HTML)
 ```

@@ -33,6 +33,7 @@ from .parse import ParseError, parse_file, parse_string
 from .report import (markdown, markdown_diff, text, text_diff, to_json,
                      to_json_diff)
 from .rules import PRIORITY_ORDER, review
+from .scope import apply_scope, unmatched_patterns
 from .runner import NmapFailed, NmapNotFound, run
 
 
@@ -61,6 +62,16 @@ def build_parser():
                         help="restrict the report to one class of finding")
     common.add_argument("--min-priority", choices=("high", "medium", "low", "info"),
                         default="info", help="drop findings below this priority")
+    common.add_argument("--exclude-host", metavar="PATTERN", action="append",
+                        default=[],
+                        help="drop a host from the report: an address, a CIDR "
+                             "block, or a glob matched against the address and "
+                             "hostnames. Repeatable. Excluded hosts are named "
+                             "in the report header, never silently dropped")
+    common.add_argument("--only-host", metavar="PATTERN", action="append",
+                        default=[],
+                        help="keep only hosts matching this (same syntax, "
+                             "repeatable); applied before --exclude-host")
 
     rep = sub.add_parser("report", parents=[common],
                          help="review existing nmap XML ('-' for stdin); "
@@ -114,7 +125,7 @@ def main(argv=None):
 
     try:
         if args.command == "report":
-            scan = merge_scans([_load(path) for path in args.xml])
+            scan = _scoped(merge_scans([_load(path) for path in args.xml]), args)
         elif args.command == "diff":
             sides = _split_sides(args.xml)
             if sides is None:
@@ -123,8 +134,8 @@ def main(argv=None):
                       "  nmap-review diff old1.xml old2.xml -- new1.xml new2.xml",
                       file=sys.stderr)
                 return 2
-            old = merge_scans([_load(p) for p in sides[0]])
-            new = merge_scans([_load(p) for p in sides[1]])
+            old = _scoped(merge_scans([_load(p) for p in sides[0]]), args)
+            new = _scoped(merge_scans([_load(p) for p in sides[1]]), args)
         else:
             nmap_args = [a for a in args.nmap_args if a != "--"]
             if not nmap_args:
@@ -133,7 +144,7 @@ def main(argv=None):
                 return 2
             xml, cmd = run(nmap_args, keep_xml=args.keep_xml,
                            echo=lambda line: print(line, file=sys.stderr))
-            scan = parse_string(xml, source=" ".join(cmd))
+            scan = _scoped(parse_string(xml, source=" ".join(cmd)), args)
     except (ParseError, NmapNotFound, NmapFailed) as exc:
         print(f"nmap-review: {exc}", file=sys.stderr)
         return 2
@@ -169,6 +180,22 @@ def main(argv=None):
         if any(PRIORITY_ORDER[f.priority] <= gate for f in findings):
             return 1
     return 0
+
+
+def _scoped(scan, args):
+    """Apply --only-host/--exclude-host, warning about patterns that hit nothing.
+
+    A pattern matching no host is almost always a typo, and a typo in an
+    exclude pattern means the host the operator meant to drop is still in the
+    report -- worth a line on stderr rather than silence.
+    """
+    patterns = list(args.only_host) + list(args.exclude_host)
+    if not patterns:
+        return scan
+    scoped = apply_scope(scan, only=args.only_host, exclude=args.exclude_host)
+    for pattern in unmatched_patterns(scoped, patterns):
+        print(f"nmap-review: warning: no host matched {pattern!r}", file=sys.stderr)
+    return scoped
 
 
 def _load(path):

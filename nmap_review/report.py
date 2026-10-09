@@ -54,6 +54,8 @@ def markdown(scan, findings):
     open_total = sum(len(h.open_ports()) for h in up)
     w(f"- **Hosts:** {len(up)} up of {len(scan.hosts)} scanned — "
       f"**{open_total} open port(s)** total")
+    if getattr(scan, "excluded", None):
+        w(f"- **Excluded by filter:** {_excluded_line(scan)}")
     w(f"- **Review items:** {c['high']} high · {c['medium']} medium · "
       f"{c['low']} low · {c['info']} info")
     w("")
@@ -168,6 +170,16 @@ def markdown(scan, findings):
     return "\n".join(L) + "\n"
 
 
+def _excluded_line(scan):
+    """One line naming every filtered-out host and the pattern that removed it.
+
+    Printed in the header of every format. An excluded host must leave a trace:
+    silently absent and never scanned look identical to a reader, and only one
+    of them is a statement about the target.
+    """
+    return "; ".join(f"{h.label} ({reason})" for h, reason in scan.excluded)
+
+
 def _md_finding(w, f, index=None):
     head = f"**{BADGE[f.priority]}** — {f.title}"
     if index is not None:
@@ -203,6 +215,9 @@ def text(scan, findings, width=78):
     up = scan.up_hosts()
     w(f"hosts    : {len(up)} up / {len(scan.hosts)} scanned, "
       f"{sum(len(h.open_ports()) for h in up)} open port(s)")
+    if getattr(scan, "excluded", None):
+        for line in _wrap("excluded : " + _excluded_line(scan), width):
+            w(line)
     w(f"review   : {c['high']} high, {c['medium']} medium, {c['low']} low, {c['info']} info")
     w("")
 
@@ -282,6 +297,8 @@ def to_json(scan, findings, indent=2):
             "hosts_scanned": len(scan.hosts),
             "hosts_up": len(scan.up_hosts()),
             "open_ports": sum(len(h.open_ports()) for h in scan.up_hosts()),
+            "excluded": [{"host": h.label, "reason": r}
+                         for h, r in getattr(scan, "excluded", [])],
         },
         "counts": counts(findings),
         "findings": [asdict(f) for f in findings],

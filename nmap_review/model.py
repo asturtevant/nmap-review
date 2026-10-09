@@ -97,6 +97,10 @@ class Scan:
     scan_types: list = field(default_factory=list)  # [(type, protocol, services)]
     hosts: list = field(default_factory=list)
     source: str = ""                                # where the XML came from
+    # Hosts removed by --only-host/--exclude-host, as (Host, reason). Kept
+    # rather than discarded so the report can show that a filter was applied:
+    # a host that is simply absent is indistinguishable from one never scanned.
+    excluded: list = field(default_factory=list)
 
     def up_hosts(self) -> list:
         return [h for h in self.hosts if h.state == "up"]

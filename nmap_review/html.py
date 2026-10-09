@@ -132,6 +132,10 @@ def _header(scan, c):
             fin += ' <span class="warn">incomplete output</span>'
         meta.append(("Finished", fin))
     meta.append(("Source", f"<code>{esc(scan.source)}</code>"))
+    if getattr(scan, "excluded", None):
+        meta.append(("Excluded", "; ".join(
+            f"{esc(h.label)} <span class=\"mute\">({esc(r)})</span>"
+            for h, r in scan.excluded)))
 
     rows = "\n".join(
         f'<div class="metarow"><dt>{k}</dt><dd>{v}</dd></div>' for k, v in meta)
@@ -448,6 +452,7 @@ h3{font-size:15px;margin:26px 0 8px;text-transform:uppercase;letter-spacing:.06e
 .lede{margin:0 0 16px;color:var(--mute);max-width:70ch}
 .ok{color:var(--mute);margin:0 0 12px}
 .warn{color:var(--high);font-weight:600}
+.mute{color:var(--mute)}
 code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.92em}
 /* summary tiles */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px;margin:8px 0 4px}
